@@ -14,6 +14,7 @@ integer fact(integer n)
 integer main()
 {
 	integer b;
+	print("Enter n");
 	read(a);
 	b=fact(a);
 	print(b);
