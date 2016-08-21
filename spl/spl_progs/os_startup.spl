@@ -1,18 +1,19 @@
-load(7,1);
+load(7,1);			//load exception handler
 load(8,2);
-load(23,17);
+
+load(23,17);		//load interrupt 7
 load(24,18);
 
-[READY_LIST + 0] = 0;
+[READY_LIST + 0] = 0;	//set PID of init to 0
 
-load(25,21);	
+load(25,21);		//load init program
 load(26,22);	
 load(27,23);	
 
-PTBR = 1024;
-PTLR = 4;
+PTBR = 1024;		//physical address of page table
+PTLR = 4;			//page table has 4 entries
 
-[PTBR + 0] = 25; 
+[PTBR + 0] = 25; 	//set up entries for init program in page table
 [PTBR + 1] = "01";
 [PTBR + 2] = 26; 
 [PTBR + 3] = "01";
@@ -21,13 +22,16 @@ PTLR = 4;
 [PTBR + 6] = 28; 
 [PTBR + 7] = "01";
 
-[READY_LIST + 1] = 2;
+[READY_LIST + 1] = 2;	//state of init process set to 2 (running)
 
-SP = 3 * 512;
+SP = 3 * 512;		//value set to starting logical address
 
-[28*512] = 0;
+[28*512] = 0;		//physical address of the process stack set to 0 for implicitly setting IP to 0 on IRET
 
 load (11, 5);
 load (12, 6);
+
+load (9, 3);
+load (10, 4);
 
 ireturn;
