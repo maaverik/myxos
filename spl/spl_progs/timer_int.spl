@@ -1,0 +1,79 @@
+alias currentPID S0;		//Find PID of current process
+currentPID = (PTBR - 1024) / 8;
+
+alias currentPCB S1;		//Find location of PCB
+currentPCB = READY_LIST + 32 * currentPID;
+
+[ currentPCB + 1 ] = 1; // Set STATE to READY
+
+// Store current registers in PCB
+[ currentPCB + 2 ] = BP;
+[ currentPCB + 3 ] = SP - 1;	
+
+alias physicalSP S2;	//Get physical address of SP
+physicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
+
+[ currentPCB + 4 ] = [ physicalSP ]; // Save IP of current process in the PCB from the stack
+
+[ currentPCB + 5 ] = PTBR;
+[ currentPCB + 6 ] = PTLR	;	
+
+[ currentPCB + 7 ] = R0;	
+[ currentPCB + 8 ] = R1;	
+[ currentPCB + 9 ] = R2;	
+[ currentPCB + 10 ] = R3;	
+[ currentPCB + 11 ] = R4;	
+[ currentPCB + 12 ] = R5;	
+[ currentPCB + 13 ] = R6;	
+[ currentPCB + 14 ] = R7;
+
+alias testPCB S4;
+alias newPCB S5;
+alias last S6;
+
+last = READY_LIST + 1024-32; //last = pid of the last process
+
+[currentPCB +1] =1; //set state of current process to ready
+
+testPCB = currentPCB+32; //testpcb is the next process
+
+while (testPCB != currentPCB) do
+    if(testPCB > last) then
+        testPCB = READY_LIST;  		//goes back to 1st process in ready list
+    endif;
+    if ([testPCB + 1] == 1) then   	//if state of the process is ready choose it
+        newPCB = testPCB;
+        break;
+    else 
+        testPCB = testPCB + 32; 	//if not move to next process
+    endif;
+endwhile;
+
+
+if(testPCB == currentPCB) then		//If only one process
+    [currentPCB + 1] = 2;
+    ireturn;
+endif;
+
+BP = [newPCB+2];		//Restore registers
+SP = [newPCB+3];
+PTBR = [newPCB+5];
+PTLR = [newPCB+6];
+R0 = [newPCB+7];
+R1 = [newPCB+8];
+R2 = [newPCB+9];
+R3 = [newPCB+10];
+R4 = [newPCB+11];
+R5 = [newPCB+12];
+R6 = [newPCB+13];
+R7 = [newPCB+14];
+
+SP = SP + 1; 		//increment SP to save IP to top
+
+alias newphysicalSP S2; 
+newphysicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512); 
+[ newphysicalSP ] = [ newPCB + 4 ]; // Stores IP field value of PCB on the stack 
+
+[newPCB + 1] = 2;//Set state to running
+
+ireturn;	
