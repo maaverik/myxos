@@ -1,0 +1,80 @@
+alias physicalSP S0;	//Get physical address of SP
+physicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
+
+alias sysCallNo S1;
+sysCallNo = [physicalSP - 1];
+
+alias filename S2;
+filename = [physicalSP - 3];
+ 		
+if ( sysCallNo == 1) then		// Code for Create()
+	alias FATind S4;
+	FATind = 0;
+	
+	while (FATind < 64) do		//Search FAT for filname
+		if (filename == [FAT + FATind*8]) then
+			print("Exists");
+			[physicalSP - 2] = 0;			//Already exists so success
+			ireturn;
+		endif;		
+		FATind = FATind + 1;
+	endwhile;
+	
+	alias DFLind S5;
+	DFLind = 24;				//Search user files after init
+	
+	while (DFLind <= 447) do
+		if ([512*6 + DFLind] == 0) then	//Check for empty block
+			break;
+		endif;
+		DFLind = DFLind + 1;
+	endwhile;
+	
+	if (DFLind == 448) then 	//No free blocks
+		print("Failure1");
+		[physicalSP - 2] = -1;			//Failure
+		ireturn;
+	endif;
+	
+	FATind = 0;
+	while (FATind < 64) do
+		if ([FAT + FATind * 8 + 2] == -1) then	// checking block number of basic block
+			break;		
+		endif;		
+		FATind = FATind + 1;	
+	endwhile;
+	
+	if (FATind == 64) then		//No free entry found
+		print("Failure2");
+		[physicalSP - 2] = -1;			//Failure
+		ireturn;
+	endif;
+	
+	// We have valid values in FATind and DFLind
+	
+	[FAT + FATind*8] = filename;		
+	[FAT + FATind*8 + 1] = 0;			//filesize initialised
+	[FAT + FATind*8 + 2] = DFLind + 1;	//free block found before
+	
+	alias entry S6;
+	entry = 0;
+	
+	while (entry < 256) do		//256 because rest is for header field which XOS deosn't use
+		[512 + entry] = -1;	 	//512 because page 1 is used as scratchpad
+		entry = entry + 1;
+	endwhile;
+	
+	store(1, DFLind); // write the basic block to disk
+
+	[FAT + 512 + DFLind] = 1;  // set entry in DFL for basic block to used
+	
+	store(5, 19);	// store the FAT
+	store(6, 20);	// store the Disk Free List
+	
+	print("Success");
+	[physicalSP - 2] = 0;    //RETURN 0 FOR SUCCESS
+	ireturn;
+
+endif;
+
+// Code for Delete()

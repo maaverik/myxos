@@ -30,44 +30,15 @@ SP = 3 * 512;		//value set to starting logical address
 
 [28*512] = 0;		//physical address of the process stack set to 0 for implicitly setting IP to 0 on IRET
 
-load (11, 5);		//load interrupt 1
+load (11, 5);
 load (12, 6);
 
-load (9, 3);		//load timer interrupt
+load (9, 3);
 load (10, 4);
 
 breakpoint;
 
-//Second process
-
-[READY_LIST + 32] = 1; 		// Sets the entry for PID as 1
-
-load(29,25 );
-
-alias PTBR_Process1 S0;		//Starting address of page table
-PTBR_Process1 = 1024 + 1 * 8;
-
-// Setting up page table for 2nd process
-
-[PTBR_Process1 + 0] = 29; // Physical Page Number for Logical Page 0
-[PTBR_Process1 + 1] = "01"; // Not referenced and Valid
-[PTBR_Process1 + 2] = -1; // Invalid Page Number for Logical Page 1
-[PTBR_Process1 + 3] = "00"; // Not referenced and Not Valid
-.	
-.	
-.	
-[PTBR_Process1 + 6] = 30; // Physical Page Number for Logical Page 3 
-[PTBR_Process1 + 7] = "01"; // Not referenced and Valid
-
-[READY_LIST + 33] = 1;	// STATE is READY
-
-[READY_LIST + 37] = PTBR_Process1;	// PTBR 
-[READY_LIST + 38] = 4;	// PTLR
-
-[READY_LIST + 34] = 3 * 512; // Sets the entry for BP in the PCB
-[READY_LIST + 35] = 3 * 512;	// Sets the entry for SP in the PCB
-
-[READY_LIST + 36] = 0;	// Sets the entry for IP to logical address 0 in the PCB
-
+load(5, 19);		//load FAT
+load(6, 20);		//load disk free list
 
 ireturn;
