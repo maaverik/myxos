@@ -1,0 +1,74 @@
+alias physicalSP S0;	//Get physical address of SP
+physicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
+
+alias sysCallNo S1;
+sysCallNo = [physicalSP - 1];
+
+alias filename S2;
+filename = [physicalSP - 3];
+ 		
+if ( sysCallNo == 2) then		// Code for Open()
+	alias FATind S1;
+	FATind = 0;
+	
+	while (FATind < 64) do		//Search FAT for filname
+		if (filename == [FAT + FATind*8]) then
+			break;			
+		endif;		
+		FATind = FATind + 1;
+	endwhile;
+	
+	if (FATind  == 64) then
+		print("Doesn't exist");
+		[physicalSP - 2] = -1;
+		ireturn;
+	endif;
+	
+	alias sysEntry S3;
+	sysEntry = 0;
+	
+	while (sysEntry < 128) do		//Check if file is open
+		if ([sysEntry + FILE_TABLE] == FATEntry) then
+			print("File open");
+			break;
+		endif;
+		if ([sysEntry + FILE_TABLE] == -1) then
+			break;
+		endif;
+		sysEntry = sysEntry + 2;
+	endwhile;
+	
+	if (sysEntry == 128) then
+		print("No room");
+		[physicalSP - 2] = -1;
+		ireturn;
+	endif;
+	
+	alias PID s4;
+	PID = (PTBR - 1024)/8;
+	
+	alias i S5;		//Search for free entry in per proces open file table
+    i = 15;
+   
+    while (i < 30) do
+	  if ([READY_LIST + 32 * PID + i] == -1) then
+	    break;
+ 	  endif;
+      i = i + 1;
+   endwhile;
+   
+   if (i == 30) then
+	  print("Process table full");
+	  [physicalSP - 2] = -1;
+	  ireturn;
+   endif;
+ 
+	[READY_LIST + 32 * PID + i] = sysEntry;	//Set FAT entry
+	[READY_LIST + 32 * PID + (i+1)] = 0; 	//Setting the LSEEK position
+	[sysEntry] = FATind;
+	[sysEntry + 1] = [sysEntry + 1] + 1;	//Increment open count
+	[physicalSP - 2] = sysEntry;		//File descriptor
+	
+endif;
+
+
