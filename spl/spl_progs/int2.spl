@@ -4,10 +4,10 @@ physicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
 alias sysCallNo S1;
 sysCallNo = [physicalSP - 1];
 
-alias filename S2;
-filename = [physicalSP - 3];
- 		
 if ( sysCallNo == 2) then		// Code for Open()
+	alias filename S2;
+	filename = [physicalSP - 3];
+
 	alias FATind S1;
 	FATind = 0;
 	
@@ -72,3 +72,43 @@ if ( sysCallNo == 2) then		// Code for Open()
 endif;
 
 
+if (sysCallNo == 3) then		// Code for Close()
+	alias fileDescriptor S2;
+	fileDescriptor = [physicalSP - 3];
+	
+	alias i S2;
+	i = 0;
+
+	while (i < 8) do	//Check if fileDescriptor is valid
+		if (i == fileDescriptor) then
+			break;
+		endif;
+		i = i + 1;
+	endwhile;
+
+	if (i == 8) then
+	  	print ("Invalid File");
+	  	[physicalSP - 2] = -1;
+		ireturn;
+	endif;	
+
+	alias PID S3;
+	PID = (PTBR - 1024)/8;
+	alias sysFileTable S4;
+	sysFileTable = [READY_LIST + 32 * PID + 15 + fileDescriptor*2];
+	
+	if (sysFileTable == -1) then 	//Not open
+		print("Invalid file entry");
+		[physicalSP - 2] = -1;
+		ireturn;
+	endif;
+	
+	[sysFileTable + 1] = [sysFileTable + 1] - 1;	//Decrement open count of system wide open file table
+	if ([sysFileTable + 1] == 0) then	//If open count is 0, invalidate
+		[sysFileTable] = -1;
+	endif;
+	
+	sysFileTable = -1;		//Invalidate per process open table entry
+	print("Closing success");
+	[physicalSP - 2] = 0; 	//Success
+ 	endif;
