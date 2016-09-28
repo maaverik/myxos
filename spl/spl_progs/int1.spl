@@ -8,6 +8,7 @@ alias filename S2;
 filename = [physicalSP - 3];
  		
 if ( sysCallNo == 1) then		// Code for Create()
+	print("Creating");
 	alias FATind S4;
 	FATind = 0;
 	
@@ -77,4 +78,82 @@ if ( sysCallNo == 1) then		// Code for Create()
 
 endif;
 
-// Code for Delete()
+
+
+
+
+if (sysCallNo == 4) then // Code for Delete()
+	print("Deleting");
+	
+	alias FATind S4;
+	FATind = 0;
+	
+	while (FATind < 64) do		//Search FAT for filname
+		if (filename == [FAT + FATind*8]) then
+			break;
+		endif;		
+		FATind = FATind + 1;
+	endwhile;
+	
+	if (FATind == 64) then
+		print("Doesn't exist");
+		[physicalSP - 2] = -1;
+		ireturn;
+	endif;
+	
+	alias sysFileInd S5;
+	sysFileInd = 0;
+	
+	while (sysFileInd < 128) do			//Check if file is open
+		if ([sysFileInd + FILE_TABLE] == FATind) then
+			print("File is open");
+			[physicalSP - 2] = -1;
+			ireturn;
+		endif;
+		sysFileInd = sysFileInd + 2;
+	endwhile;
+	
+	alias basicBlk S6;
+	basicBlk = [FAT + FATind*8 + 2];
+	load(1, basicBlk);		//Load basic block to scratchpad
+	
+	alias i S7;
+	alias j S8;
+	i = 0;
+	
+	while (i < 256) do
+		if ([512 + i] != -1) then
+			load(1, [512 + i]);
+			
+			j = 0;
+			while (j < 512) do
+				[512 + j]  = "";
+				j = j + 1;
+			endwhile;
+			
+			store(1, [512 + i]);
+			load(1, basicBlk);
+			
+			[DISK_LIST + [512 +i]] = 0;
+			//[512 + i] = "";
+		endif;
+		i = i + 1;
+	endwhile;
+	
+	load(1, basicBlk);
+	j = 0;
+	while (j < 512) do
+		[512+j] = "";
+		j = j + 1;
+	endwhile;
+	store(1, basicBlk);
+	[DISK_LIST + basicBlk] = 0;		//Set DFL entry to unused
+	[FAT + FATind*8] = -1;					//Invalidate FAT entry
+	[FAT + FATind*8 + 1] = 0;
+	[FAT + FATind*8 + 2] = -1;
+	
+	store(5, 19);		//FAT
+	store(6, 20);		//DFL
+	[physicalSP - 2] = 0;
+	ireturn;
+endif;

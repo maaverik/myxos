@@ -1,0 +1,134 @@
+alias physicalSP S0;
+physicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
+.
+// Get system call no. from the stack and put it in a register
+// Get arguments from stack and put it in registers
+.
+
+alias sysCallNo S1;
+sysCallNo=[physicalSP-1];
+alias filename S2;
+filename = [physicalSP-3];
+
+
+alias count S3;
+alias empty S4;
+alias df_count S5;
+df_count= 20;
+alias padcount S6;
+padcount = SCRATCHPAD;
+count=0;
+empty=0;
+//print("start");
+if ( sysCallNo == 1) then
+	// Implementation of Create 
+	while(count <  512 && [FAT + count ]!=-1 ) do
+		if([FAT + count] == filename) then
+			[physicalSP-2]=0;
+			ireturn;
+		endif;
+		count=count+8;
+	endwhile;
+	if(count==512) then
+		[physicalSP-2]=-1;
+		ireturn;
+	endif;	
+	
+
+
+	while( df_count < 448) do
+		if([df_count+ DISK_LIST]==0) then
+			[FAT + count ]= filename;
+			[FAT + count + 1 ]= 0;
+			[FAT + count + 2 ]= df_count;
+			
+			load(1,df_count);
+	 
+			while(padcount< SCRATCHPAD + 512) do
+				[padcount]=-1	;
+				padcount = padcount + 1;
+			endwhile;
+			store(1,df_count);
+			[df_count + DISK_LIST]=1;
+			store( 5,19);
+			store(6,20);
+			[physicalSP - 2] = 0;
+			ireturn;
+		endif;
+		df_count=df_count+1;
+	endwhile;
+endif;
+
+
+if(sysCallNo == 4) then
+  	//implementation of delete
+	///check if file is in present in FAT
+	
+	while(count < 512 ) do
+		if([FAT + count] == filename) then
+			break;
+		endif;
+		count =count + 8;
+	endwhile;
+	//if not return -1
+	if(count == 512) then
+		[physicalSP - 2] = -1;
+		ireturn;
+	endif;
+	alias swcount S5;
+	swcount =0;
+	//check if fat index is present in system wide open table
+	while(swcount < 128) do
+		//cannot delete an opened file
+		if( [FILE_TABLE + swcount ]== count) then
+			[physicalSP - 2] = -1;
+			ireturn;
+		endif;
+		swcount = swcount + 2;
+	endwhile;
+	//load basic block to scratchpad 
+	load(1,[FAT + count + 2]);
+	alias dbcount S6;
+	dbcount=0; 
+	alias datablock S7;
+//save datablock no in a register
+	
+	
+	while( dbcount < 256) do
+	//load the datablock to scratchpad
+		if([SCRATCHPAD + dbcount] !=-1) then
+		 	load ( 1,datablock);
+		
+			 alias padcount S6;
+			 padcount=0;
+			 while (padcount < 512) do
+				[SCRATCHPAD + padcount] ="";  //make the entry inside datablock empty
+				padcount =padcount + 1;
+			 endwhile;
+			store ( 1 , [SCRATCHPAD + dbcount]); //store back to datablock
+			load ( 1 , [FAT + count + 2]); //load back basic block
+			[DISK_LIST + [SCRATCHPAD + dbcount]] = 0; //set disk free list
+		endif;
+		dbcount = dbcount + 1;
+		
+	
+	endwhile;
+	load (1,[FAT+ count*8+2]);
+    	padcount =0;
+    	while(padcount<512) do
+        	[padcount + SCRATCHPAD]="";  // basic block to empty
+    		padcount = padcount + 1;
+    	endwhile;
+	store (1,[FAT + count + 2]);
+	[DISK_LIST + [FAT + count + 2]] =0;
+	[FAT + count] = -1;
+	[FAT +  count + 1] =0;  //invalidate fat entry
+	[FAT + count + 2] =-1;
+	store( 5 ,19);
+	store( 6,20);
+	[physicalSP-2]=0;
+    	ireturn;
+endif;	
+			
+		
+	 

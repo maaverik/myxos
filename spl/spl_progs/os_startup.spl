@@ -49,7 +49,7 @@ while ( counter <  128) do			// 64 entries, each of size 2 words
 	counter = counter + 2;			// Move to next entry
 endwhile;	
 
-[READY_LIST + 15] = -1;		Setting up the Per-Process File Open table
+[READY_LIST + 15] = -1;		//Setting up the Per-Process File Open table
 [READY_LIST + 16] = -1;
 [READY_LIST + 17] = -1;
 [READY_LIST + 18] = -1;

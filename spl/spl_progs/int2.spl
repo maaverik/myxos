@@ -5,12 +5,14 @@ alias sysCallNo S1;
 sysCallNo = [physicalSP - 1];
 
 if ( sysCallNo == 2) then		// Code for Open()
+	print("Opening");
 	alias filename S2;
 	filename = [physicalSP - 3];
 
 	alias FATind S1;
 	FATind = 0;
 	
+	//print("Searching");
 	while (FATind < 64) do		//Search FAT for filname
 		if (filename == [FAT + FATind*8]) then
 			break;			
@@ -27,8 +29,9 @@ if ( sysCallNo == 2) then		// Code for Open()
 	alias sysEntry S3;
 	sysEntry = 0;
 	
+	//print("Checking if open");
 	while (sysEntry < 128) do		//Check if file is open
-		if ([sysEntry + FILE_TABLE] == FATEntry) then
+		if ([sysEntry + FILE_TABLE] == FATind) then
 			print("File open");
 			break;
 		endif;
@@ -44,12 +47,13 @@ if ( sysCallNo == 2) then		// Code for Open()
 		ireturn;
 	endif;
 	
-	alias PID s4;
+	alias PID S4;
 	PID = (PTBR - 1024)/8;
 	
 	alias i S5;		//Search for free entry in per proces open file table
     i = 15;
    
+    //print("Free entry search");
     while (i < 30) do
 	  if ([READY_LIST + 32 * PID + i] == -1) then
 	    break;
@@ -65,18 +69,21 @@ if ( sysCallNo == 2) then		// Code for Open()
  
 	[READY_LIST + 32 * PID + i] = sysEntry;	//Set FAT entry
 	[READY_LIST + 32 * PID + (i+1)] = 0; 	//Setting the LSEEK position
-	[sysEntry] = FATind;
-	[sysEntry + 1] = [sysEntry + 1] + 1;	//Increment open count
-	[physicalSP - 2] = sysEntry;		//File descriptor
-	
+	[sysEntry + FILE_TABLE] = FATind;
+	[sysEntry + FILE_TABLE + 1] = [sysEntry + FILE_TABLE + 1] + 1;	//Increment open count
+	[physicalSP - 2] = (i-15)/2;		//File descriptor
+	ireturn;
 endif;
 
 
+
+
 if (sysCallNo == 3) then		// Code for Close()
+	print("Closing");
 	alias fileDescriptor S2;
 	fileDescriptor = [physicalSP - 3];
 	
-	alias i S2;
+	alias i S3;
 	i = 0;
 
 	while (i < 8) do	//Check if fileDescriptor is valid
@@ -92,23 +99,24 @@ if (sysCallNo == 3) then		// Code for Close()
 		ireturn;
 	endif;	
 
-	alias PID S3;
+	alias PID S4;
 	PID = (PTBR - 1024)/8;
-	alias sysFileTable S4;
+	alias sysFileTable S5;
 	sysFileTable = [READY_LIST + 32 * PID + 15 + fileDescriptor*2];
 	
 	if (sysFileTable == -1) then 	//Not open
-		print("Invalid file entry");
+		print("Not open");
 		[physicalSP - 2] = -1;
 		ireturn;
 	endif;
 	
-	[sysFileTable + 1] = [sysFileTable + 1] - 1;	//Decrement open count of system wide open file table
-	if ([sysFileTable + 1] == 0) then	//If open count is 0, invalidate
-		[sysFileTable] = -1;
+	[sysFileTable + FILE_TABLE + 1] = [sysFileTable + FILE_TABLE + 1] - 1;	//Decrement open count of system wide open file table
+	if ([sysFileTable + FILE_TABLE + 1] == 0) then	//If open count is 0, invalidate
+		[sysFileTable + FILE_TABLE] = -1;
 	endif;
 	
 	sysFileTable = -1;		//Invalidate per process open table entry
-	print("Closing success");
+	//print("Closing success");
 	[physicalSP - 2] = 0; 	//Success
+	ireturn;
  	endif;
