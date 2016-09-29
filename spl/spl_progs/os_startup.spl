@@ -69,10 +69,10 @@ endwhile;
 load (13, 7);		//interrupt 2
 load (14, 8);
  
-//load (15, 9);		//interrupt 3
-//load (16, 10);
+load (15, 9);		//interrupt 3
+load (16, 10);
  
-//load (17, 11);	//interrupt 4
-//load (18, 12);
+load (17, 11);		//interrupt 4
+load (18, 12);
 
 ireturn;

@@ -1,0 +1,106 @@
+alias physicalSP S0;
+physicalSP = ([PTBR + 2 * (SP/512)] * 512) + (SP % 512);
+
+alias sysCallNo S1;
+sysCallNo = [physicalSP - 1];
+
+
+if (sysCallNo == 6) then		//Code for Seek()
+  alias fileDescriptor S2;
+  alias newLseek S3;
+  newLseek = [physicalSP - 3]; //Getting arguments from stack
+  fileDescriptor = [physicalSP - 4];
+
+if (fileDescriptor > 7 || fileDescriptor < 0) then	//Checking if fileDescriptor is valid
+    print ("Invalid File");
+    [physicalSP - 2] = -1;
+    ireturn;
+endif;
+ 
+  alias processFileTable S4;
+  alias PID S5;
+  PID = (PTBR - 1024)/8;
+  
+  processFileTable = READY_LIST + 32 * PID + 15 + (2 * fileDescriptor); 
+  if ([processFileTable] == -1) then	 //Check per-process table entry
+    print ("Invalid entry");
+    [physicalSP - 2] = -1;
+    ireturn;
+  endif;
+
+  alias FATindex S5;
+  FATindex = [[processFileTable]];
+  
+  alias i S6;
+  i = 0;
+  while (i < [FATindex + 1]) do		//Compare newLseek with file size
+    if (newLseek == i) then
+      break;
+    endif;
+    i = i + 1;
+  endwhile;
+  if (i == FATindex + 1) then
+    print("Invalid seek location");
+    [physicalSP - 2] = -1;
+    ireturn;
+  endif;
+
+  [processFileTable + 1] = newLseek;	//Change lseek value
+  [physicalSP - 2] = 0;
+endif;
+
+
+
+if (sysCallNo == 7) then	//Code for Read()
+  alias fileDescriptor S2;
+  alias wordToRead S3;
+  
+  fileDescriptor = [physicalSP - 4]; //Getting arguments from stack
+
+  if (fileDescriptor > 7 || fileDescriptor < 0) then		//Checking if fileDescriptor is valid
+    print ("Invalid File");
+    [physicalSP - 2] = -1;
+    ireturn;
+endif;
+
+  alias processFileTable S4;
+  alias PID S5;
+  PID = (PTBR - 1024)/8;
+  
+  processFileTable = READY_LIST + 32 * PID + 15 + (2 * fileDescriptor); 
+  if ([processFileTable] == -1) then	 //Check per-process table entry
+    print ("Invalid entry");
+    [physicalSP - 2] = -1;
+    ireturn;
+  endif;
+
+  alias FATindex S5;
+  FATindex = [[processFileTable]]; 
+  
+  alias basicBlock S6;
+  basicBlock = [FATindex + 2];
+  
+  load (1, basicBlock);		//Find the basic block from the FAT table and load to scratchpad
+
+  if ([processFileTable + 1] == [FATindex + 1]) then	//Check if LSEEK is at end of file
+    print("EOF");
+    [physicalSP - 2] = -1;
+    ireturn;
+  endif;
+  
+  alias lSeekBlock S7;
+  alias dataBlock S8;
+  lSeekBlock = [processFileTable + 1]/512;
+  dataBlock = [512 + lSeekBlock];		//Found databock number from basic block
+
+  load (1, dataBlock);
+  
+  alias offset S9;
+  offset = [processFileTable + 1] % 512;
+  
+  [physicalSP - 3] = [512 + offset];		//Stored in wordRead's position
+  [processFileTable + 1] = [processFileTable + 1] + 1;	//Increment LSEEK
+  [physicalSP - 2] = 0;
+endif;
+
+ireturn;

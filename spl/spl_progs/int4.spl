@@ -1,0 +1,77 @@
+alias physicalSP S0;
+physicalSP = ([PTBR + 2 * (SP/512)] * 512) + (SP % 512);
+
+alias sysCallNo S1;
+sysCallNo = [physicalSP - 1];
+
+if (sysCallNo == 5) then		//Code for Write()
+  alias fileDescriptor S2;
+  alias wordToWrite S3;
+  wordToWrite = [physicalSP - 3]; 	//Getting arguments from stack
+  fileDescriptor = [physicalSP - 4];
+
+if (fileDescriptor > 7 || fileDescriptor < 0) then	//Checking if fileDescriptor is valid
+    print ("Invalid File");
+    [physicalSP - 2] = -1;
+    ireturn;
+endif;
+
+  alias processFileTable S4;
+  alias PID S5;
+  PID = (PTBR - 1024)/8;
+  
+  processFileTable = READY_LIST + 32 * PID + 15 + (2 * fileDescriptor); 
+  if ([processFileTable] == -1) then	 //Check per-process table entry
+    print ("Invalid entry");
+    [physicalSP - 2] = -1;
+    ireturn;
+  endif;
+
+  alias FATindex S5;
+  FATindex = [[processFileTable]]; 
+  
+  alias basicBlock S6;
+  basicBlock = [FATindex + 2];
+  
+  load (1, basicBlock);		//Find the basic block from the FAT table and load to scratchpad
+  
+ alias lSeekBlock S7;
+ alias dataBlock S8;
+ lSeekBlock = [processFileTable + 1]/512;
+ dataBlock = [512 + lSeekBlock];
+
+  if (dataBlock == -1) then		//If data block does not exist, making a new one and adding in Basic Block
+    alias i S9;
+    i = 24;
+    while (i < 448) do
+      if ([DISK_LIST + i] == 0) then
+        [DISK_LIST + i] = 1;
+        break;
+      endif;
+      i = i + 1;
+    endwhile;
+    if (i == 448) then
+      print("Disk block not empty");
+      [physicalSP - 2] = -1;
+      ireturn;
+    endif;
+    [SCRATCHPAD + lSeekBlock] = i;
+    dataBlock = i;
+    store(1, basicBlock);
+    [FATindex + 1] = [FATindex + 1] + 512;
+    store(5, 19);
+    store(6, 20);
+  endif;
+
+  load (1, dataBlock);
+  alias offset S9;
+  offset = [processFileTable + 1] % 512;
+  
+  [512 + offset] = wordToWrite;			//Writing to the file
+
+  store (1, dataBlock);
+  [processFileTable + 1] = [processFileTable + 1] + 1;		//Increment LSEEK
+  [physicalSP - 2] = 0;
+endif;
+
+ireturn;
