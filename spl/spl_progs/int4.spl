@@ -5,16 +5,21 @@ alias sysCallNo S1;
 sysCallNo = [physicalSP - 1];
 
 if (sysCallNo == 5) then		//Code for Write()
+  print("Writing");
   alias fileDescriptor S2;
   alias wordToWrite S3;
   wordToWrite = [physicalSP - 3]; 	//Getting arguments from stack
   fileDescriptor = [physicalSP - 4];
+
+print("a");
 
 if (fileDescriptor > 7 || fileDescriptor < 0) then	//Checking if fileDescriptor is valid
     print ("Invalid File");
     [physicalSP - 2] = -1;
     ireturn;
 endif;
+
+print("b");
 
   alias processFileTable S4;
   alias PID S5;
@@ -27,14 +32,18 @@ endif;
     ireturn;
   endif;
 
+print("c");
+
   alias FATindex S5;
-  FATindex = [[processFileTable]]; 
+  FATindex = [FILE_TABLE + [processFileTable]*2]; 
   
   alias basicBlock S6;
-  basicBlock = [FATindex + 2];
+  basicBlock = [FAT + FATindex*8 + 2];
   
   load (1, basicBlock);		//Find the basic block from the FAT table and load to scratchpad
   
+ print("d"); 
+ 
  alias lSeekBlock S7;
  alias dataBlock S8;
  lSeekBlock = [processFileTable + 1]/512;
@@ -50,28 +59,40 @@ endif;
       endif;
       i = i + 1;
     endwhile;
+    
     if (i == 448) then
       print("Disk block not empty");
       [physicalSP - 2] = -1;
       ireturn;
     endif;
-    [SCRATCHPAD + lSeekBlock] = i;
+    
+    [512*6 + i] = 1; 			//Set entry for this free block to used in DFL
     dataBlock = i;
-    store(1, basicBlock);
-    [FATindex + 1] = [FATindex + 1] + 512;
-    store(5, 19);
-    store(6, 20);
+    [512 + lSeekBlock] = i;		//Add block number to basic block
+    store(1, basicBlock);		//commit basic block to disk
+    [FATindex + 1] = [FATindex + 1] + 512;		//Increment file size in FAT entry
+    store(5, 19);		//FAT		
+    store(6, 20);		//DFL
   endif;
+  
+  print("e");
 
   load (1, dataBlock);
   alias offset S9;
   offset = [processFileTable + 1] % 512;
   
+  print("f");
+  
   [512 + offset] = wordToWrite;			//Writing to the file
+
+print("g");
 
   store (1, dataBlock);
   [processFileTable + 1] = [processFileTable + 1] + 1;		//Increment LSEEK
   [physicalSP - 2] = 0;
+  
+print("h");
+  
 endif;
 
 ireturn;

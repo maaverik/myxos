@@ -6,6 +6,7 @@ sysCallNo = [physicalSP - 1];
 
 
 if (sysCallNo == 6) then		//Code for Seek()
+  print("Seeking");
   alias fileDescriptor S2;
   alias newLseek S3;
   newLseek = [physicalSP - 3]; //Getting arguments from stack
@@ -29,7 +30,7 @@ endif;
   endif;
 
   alias FATindex S5;
-  FATindex = [[processFileTable]];
+  FATindex = [FILE_TABLE + processFileTable*2];
   
   alias i S6;
   i = 0;
@@ -52,6 +53,7 @@ endif;
 
 
 if (sysCallNo == 7) then	//Code for Read()
+  print("Reading");
   alias fileDescriptor S2;
   alias wordToRead S3;
   
@@ -62,6 +64,8 @@ if (sysCallNo == 7) then	//Code for Read()
     [physicalSP - 2] = -1;
     ireturn;
 endif;
+
+print("a");
 
   alias processFileTable S4;
   alias PID S5;
@@ -74,11 +78,13 @@ endif;
     ireturn;
   endif;
 
+print("b");
+
   alias FATindex S5;
-  FATindex = [[processFileTable]]; 
+  FATindex = [FILE_TABLE + processFileTable*2]; 
   
   alias basicBlock S6;
-  basicBlock = [FATindex + 2];
+  basicBlock = [FAT + FATindex*8 + 2];
   
   load (1, basicBlock);		//Find the basic block from the FAT table and load to scratchpad
 
@@ -88,15 +94,21 @@ endif;
     ireturn;
   endif;
   
+print("c");
+  
   alias lSeekBlock S7;
   alias dataBlock S8;
   lSeekBlock = [processFileTable + 1]/512;
   dataBlock = [512 + lSeekBlock];		//Found databock number from basic block
 
+print("d");
+
   load (1, dataBlock);
   
   alias offset S9;
   offset = [processFileTable + 1] % 512;
+  
+print("e");  
   
   [physicalSP - 3] = [512 + offset];		//Stored in wordRead's position
   [processFileTable + 1] = [processFileTable + 1] + 1;	//Increment LSEEK
