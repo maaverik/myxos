@@ -29,22 +29,31 @@ if ( sysCallNo == 2) then		// Code for Open()
 	alias sysEntry S3;
 	sysEntry = 0;
 	
-	//print("Checking if open");
 	while (sysEntry < 128) do		//Check if file is open
 		if ([sysEntry + FILE_TABLE] == FATind) then
 			print("File open");
 			break;
 		endif;
-		if ([sysEntry + FILE_TABLE] == -1) then
-			break;
-		endif;
+		
 		sysEntry = sysEntry + 2;
 	endwhile;
 	
 	if (sysEntry == 128) then
-		print("No room");
-		[physicalSP - 2] = -1;
-		ireturn;
+		sysEntry = 0;
+	
+		while (sysEntry < 128) do		//Check for free entry
+			if ([sysEntry + FILE_TABLE] == -1) then
+				[FILE_TABLE + sysEntry + 1] = 0;
+				break;
+			endif;
+		
+			sysEntry = sysEntry + 2;
+		endwhile;
+		if (sysEntry == 128) then
+			print("No room");
+			[physicalSP - 2] = -1;
+			ireturn;
+		endif;
 	endif;
 	
 	alias PID S4;
@@ -58,7 +67,7 @@ if ( sysCallNo == 2) then		// Code for Open()
 	  if ([READY_LIST + 32 * PID + i] == -1) then
 	    break;
  	  endif;
-      i = i + 1;
+      i = i + 2;
    endwhile;
    
    if (i == 30) then
@@ -67,7 +76,7 @@ if ( sysCallNo == 2) then		// Code for Open()
 	  ireturn;
    endif;
  
-	[READY_LIST + 32 * PID + i] = sysEntry;	//Set FAT entry
+	[READY_LIST + 32 * PID + i] = sysEntry/2;	//Set FAT entry
 	[READY_LIST + 32 * PID + (i+1)] = 0; 	//Setting the LSEEK position
 	[sysEntry + FILE_TABLE] = FATind;
 	[sysEntry + FILE_TABLE + 1] = [sysEntry + FILE_TABLE + 1] + 1;	//Increment open count

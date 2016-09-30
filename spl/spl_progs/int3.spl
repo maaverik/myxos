@@ -32,19 +32,15 @@ endif;
   alias FATindex S5;
   FATindex = [FILE_TABLE + processFileTable*2];
   
-  alias i S6;
-  i = 0;
-  while (i < [FATindex + 1]) do		//Compare newLseek with file size
-    if (newLseek == i) then
-      break;
-    endif;
-    i = i + 1;
-  endwhile;
-  if (i == FATindex + 1) then
-    print("Invalid seek location");
-    [physicalSP - 2] = -1;
-    ireturn;
-  endif;
+	alias fileSize S6;
+	fileSize = [FAT + FATindex * 8 + 1];
+	
+	if (newLseek < 0 || newLseek > fileSize) then		//Check if newlseek > filesize
+		print("Invalid lseek");
+		[physicalSP - 2] = -1;
+		ireturn;
+	endif;
+
 
   [processFileTable + 1] = newLseek;	//Change lseek value
   [physicalSP - 2] = 0;
@@ -65,7 +61,7 @@ if (sysCallNo == 7) then	//Code for Read()
     ireturn;
 endif;
 
-print("a");
+//print("a");
 
   alias processFileTable S4;
   alias PID S5;
@@ -78,41 +74,44 @@ print("a");
     ireturn;
   endif;
 
-print("b");
+//print("b");
 
   alias FATindex S5;
-  FATindex = [FILE_TABLE + processFileTable*2]; 
+  FATindex = [FILE_TABLE + [processFileTable]*2]; 
   
   alias basicBlock S6;
   basicBlock = [FAT + FATindex*8 + 2];
   
   load (1, basicBlock);		//Find the basic block from the FAT table and load to scratchpad
 
-  if ([processFileTable + 1] == [FATindex + 1]) then	//Check if LSEEK is at end of file
+  if ([processFileTable + 1] >= [FAT + FATindex*8 + 1]) then	//Check if LSEEK is at end of file
     print("EOF");
     [physicalSP - 2] = -1;
     ireturn;
   endif;
   
-print("c");
+//print("c");
   
   alias lSeekBlock S7;
   alias dataBlock S8;
   lSeekBlock = [processFileTable + 1]/512;
   dataBlock = [512 + lSeekBlock];		//Found databock number from basic block
 
-print("d");
+//print("d");
 
   load (1, dataBlock);
   
   alias offset S9;
   offset = [processFileTable + 1] % 512;
   
-print("e");  
-  
+ print("e");  
+  print([512+offset]);
   [physicalSP - 3] = [512 + offset];		//Stored in wordRead's position
   [processFileTable + 1] = [processFileTable + 1] + 1;	//Increment LSEEK
   [physicalSP - 2] = 0;
+  
+  breakpoint;
+  
 endif;
 
 ireturn;

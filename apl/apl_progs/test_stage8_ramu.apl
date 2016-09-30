@@ -1,7 +1,6 @@
 decl
 	integer status;
 	integer word;
-		integer word1;
 	integer filedescriptor1;
 	integer filedescriptor2;
 	integer filedescriptor3;
@@ -36,8 +35,7 @@ integer main()
  
  
   n= Seek(filedescriptor1,999);
-
-  
+	
   i=999;
    while(i>=0) do
    

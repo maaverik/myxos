@@ -24,7 +24,7 @@ PTLR = 4;			//page table has 4 entries
 
 [READY_LIST + 1] = 2;	//state of init process set to 2 (running)
 
-breakpoint;
+
 
 SP = 3 * 512;		//value set to starting logical address
 
@@ -36,7 +36,7 @@ load (12, 6);
 load (9, 3);		// timer interrupt
 load (10, 4);
 
-breakpoint;
+
 
 load(5, 19);		//load FAT
 load(6, 20);		//load disk free list

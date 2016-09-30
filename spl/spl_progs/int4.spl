@@ -11,7 +11,7 @@ if (sysCallNo == 5) then		//Code for Write()
   wordToWrite = [physicalSP - 3]; 	//Getting arguments from stack
   fileDescriptor = [physicalSP - 4];
 
-print("a");
+//print("a");
 
 if (fileDescriptor > 7 || fileDescriptor < 0) then	//Checking if fileDescriptor is valid
     print ("Invalid File");
@@ -19,7 +19,7 @@ if (fileDescriptor > 7 || fileDescriptor < 0) then	//Checking if fileDescriptor 
     ireturn;
 endif;
 
-print("b");
+//print("b");
 
   alias processFileTable S4;
   alias PID S5;
@@ -32,7 +32,7 @@ print("b");
     ireturn;
   endif;
 
-print("c");
+//print("c");
 
   alias FATindex S5;
   FATindex = [FILE_TABLE + [processFileTable]*2]; 
@@ -42,7 +42,7 @@ print("c");
   
   load (1, basicBlock);		//Find the basic block from the FAT table and load to scratchpad
   
- print("d"); 
+ //print("d"); 
  
  alias lSeekBlock S7;
  alias dataBlock S8;
@@ -70,28 +70,28 @@ print("c");
     dataBlock = i;
     [512 + lSeekBlock] = i;		//Add block number to basic block
     store(1, basicBlock);		//commit basic block to disk
-    [FATindex + 1] = [FATindex + 1] + 512;		//Increment file size in FAT entry
+    [FAT + FATindex*8 + 1] = [FAT + FATindex*8 + 1] + 512;		//Increment file size in FAT entry
     store(5, 19);		//FAT		
     store(6, 20);		//DFL
   endif;
   
-  print("e");
+  //print("e");
 
   load (1, dataBlock);
   alias offset S9;
   offset = [processFileTable + 1] % 512;
   
-  print("f");
+  //print("f");
   
   [512 + offset] = wordToWrite;			//Writing to the file
 
-print("g");
+//print("g");
 
   store (1, dataBlock);
   [processFileTable + 1] = [processFileTable + 1] + 1;		//Increment LSEEK
   [physicalSP - 2] = 0;
   
-print("h");
+//print("h");
   
 endif;
 

@@ -39,7 +39,7 @@ if ( sysCallNo == 1) then		// Code for Create()
 	
 	FATind = 0;
 	while (FATind < 64) do
-		if ([FAT + FATind * 8 + 2] == -1) then	// checking block number of basic block
+		if ([FAT + FATind * 8 + 2] == -1) then	// Finding free entry for basic block
 			break;		
 		endif;		
 		FATind = FATind + 1;	
@@ -55,7 +55,9 @@ if ( sysCallNo == 1) then		// Code for Create()
 	
 	[FAT + FATind*8] = filename;		
 	[FAT + FATind*8 + 1] = 0;			//filesize initialised
-	[FAT + FATind*8 + 2] = DFLind + 1;	//free block found before
+	[FAT + FATind*8 + 2] = DFLind;	//free block found before
+	
+	load(1, DFLind);
 	
 	alias entry S6;
 	entry = 0;
