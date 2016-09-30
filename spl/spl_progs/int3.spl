@@ -104,8 +104,7 @@ endif;
   alias offset S9;
   offset = [processFileTable + 1] % 512;
   
- print("e");  
-  print([512+offset]);
+ //print("e");  
   [physicalSP - 3] = [512 + offset];		//Stored in wordRead's position
   [processFileTable + 1] = [processFileTable + 1] + 1;	//Increment LSEEK
   [physicalSP - 2] = 0;

@@ -124,7 +124,7 @@ if (sysCallNo == 3) then		// Code for Close()
 		[sysFileTable + FILE_TABLE] = -1;
 	endif;
 	
-	sysFileTable = -1;		//Invalidate per process open table entry
+	[READY_LIST + 32 * PID + 15 + fileDescriptor*2] = -1;		//Invalidate per process open table entry
 	//print("Closing success");
 	[physicalSP - 2] = 0; 	//Success
 	ireturn;
