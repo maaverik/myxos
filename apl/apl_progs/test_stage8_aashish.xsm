@@ -23,11 +23,15 @@ MOV [R0], R1
 MOV R0, 1539
 MOV R0, [R0]
 OUT R0
+MOV R0, "Enter first word"
+OUT R0
 MOV R0, 1537
-MOV R1, "carpe"
+IN R1
 MOV [R0], R1
+MOV R0, "Enter second word"
+OUT R0
 MOV R0, 1538
-MOV R1, "diem"
+IN R1
 MOV [R0], R1
 MOV R0, 1540
 MOV R1, "myfile.dat"

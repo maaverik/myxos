@@ -37,7 +37,6 @@ load (9, 3);		// timer interrupt
 load (10, 4);
 
 
-
 load(5, 19);		//load FAT
 load(6, 20);		//load disk free list
 
@@ -74,5 +73,34 @@ load (16, 10);
  
 load (17, 11);		//interrupt 4
 load (18, 12);
+
+load (19, 13);		//interrupt 5
+load (20, 14);
+
+load (21, 15);		//interrupt 6
+load (22, 16);
+
+load (23, 17);		//interrupt 7
+load (24, 18);
+
+alias i S0;
+i = 0;
+
+while (i<28) do		//Set memory free list values to used till page 25
+	[MEM_LIST + i] = 1;
+	i = i+1;
+endwhile;
+
+while(i<64) do		//Set rest to unused
+	[MEM_LIST + i] = 0;
+	i = i+1;
+endwhile;
+
+i = 1;
+while (i<32) do		//Set state of all PCBs except init to free
+	[READY_LIST + i*32 + 1] = 0;
+	i = i+1;
+endwhile;
+
 
 ireturn;

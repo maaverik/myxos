@@ -1,0 +1,109 @@
+alias physicalSP S0;
+physicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
+
+alias sysCallNo S1;
+sysCallNo = [physicalSP - 1];
+
+if (sysCallNo == 8)	then	//Code for Fork()
+	print("Forking");
+	alias PID S2;
+	PID = (PTBR - 1024)/8;
+
+	alias newPID S3;
+	newPID = (PID + 1) % 32;
+
+	while (newPID != PID) do
+		if ([READY_LIST + newPID*32 + 1] == 0) then
+			break;
+		endif;
+		newPID = (newPID + 1)%32;
+	endwhile;
+
+	if (newPID == PID) then
+		print("No free PCB");
+		[physicalSP - 2] = -1;
+		ireturn;
+	endif;
+
+	alias childPTBR S4;
+	childPTBR = 1024 + newPID*8;
+
+	alias pageCount S4;
+	pageCount = 0;
+
+	alias i S5;
+	i = 0;
+
+	while (i < 4) do		// Find number of pages used by parent
+		if (PTBR + i*2 + 1 == "01" || PTBR + i*2 + 1 == "11") then
+			pageCount = pageCount + 1;
+		endif;
+		i = i+1;
+	endwhile;
+
+	i = 0;
+	while (i<64) do		// Check if there are enough free pages for child
+		if ([MEM_LIST + i] == 0) then
+			pageCount = pageCount - 1;
+		endif;
+		if (pageCount <= 0)
+			break;
+		endif;
+	endwhile;
+
+	if (pageCount > 0) then
+		print("Not enough free pages");
+		[physicalSP - 2] = -1;
+		ireturn;
+	endif;
+
+	alias freePage S6;
+	freePage = 0;
+	alias j S7;
+	i = 0;
+	while (i < 4) do		// Copy contents of each page
+		if ([PTBR + i*2 + 1] == "00") then	// If page not allocated, skip copying
+			[childPTBR + i*2 + 1] = "00";
+			i = i+1;
+			continue;
+		while (freePage < 64) do	// Get index of free page
+			if ([MEM_LIST + freePage] == 0) then
+				break;
+			endif;
+			freePage = freePage + 1;
+		endwhile;
+
+		[MEM_LIST + freePage] = 1;		// Set memory free table entry to used
+		
+		j = 0;
+		while (j < 512) do		// Copy word by word
+			[freePage*512 + j] = [[PTBR + i*2] * 512 + j];		//	[PTBR + i*2] is the parent's physical page number
+			j = j+1;
+		endwhile;
+
+		[childPTBR + i*2] = freePage;			// Update child's PTBR fields
+		[childPTBR + i*2 + 1] = [PTBR + i*2 + 1];
+
+		i = i+1;
+	endwhile;
+
+	// Set child's PCB entries
+
+	[READY_LIST + newPID*32] = newPID;		
+	[READY_LIST + newPID*32 + 2] = BP;
+	[READY_LIST + newPID*32 + 3] = SP - 1; 	// parent has IP in stack
+	[READY_LIST + newPID*32 + 4] = [physicalSP];		// IP is same as parent (it is logical address)
+	[READY_LIST + newPID*32 + 5] = childPTBR;
+	[READY_LIST + newPID*32 + 6] = 4;	// PTLR
+	[READY_LIST + newPID*32 + 7] = R0;
+	[READY_LIST + newPID*32 + 8] = R1;
+	[READY_LIST + newPID*32 + 9] = R2;
+	[READY_LIST + newPID*32 + 10] = R3;
+	[READY_LIST + newPID*32 + 11] = R4;
+	[READY_LIST + newPID*32 + 12] = R5;
+	[READY_LIST + newPID*32 + 13] = R6;
+	[READY_LIST + newPID*32 + 14] = R7;
+
+
+
+

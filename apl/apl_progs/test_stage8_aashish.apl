@@ -9,8 +9,10 @@ integer main()
 {	
 	status = Create("myfile.dat");
 	print(status);
-	b = "carpe";
-	c = "diem";
+	print("Enter first word");
+	read(b);
+	print("Enter second word");
+	read(c);
 	fileDescriptor = Open("myfile.dat");
 	print(status);
 	status = Write(fileDescriptor, b);
