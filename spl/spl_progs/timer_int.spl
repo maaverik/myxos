@@ -1,3 +1,5 @@
+//print("In timer");
+print(".");
 alias currentPID S0;		//Find PID of current process
 currentPID = (PTBR - 1024) / 8;
 

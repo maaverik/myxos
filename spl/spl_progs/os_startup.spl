@@ -1,13 +1,10 @@
 load(7,1);			//load exception handler
 load(8,2);
 
-load(23,17);		//load interrupt 7
-load(24,18);
-
 [READY_LIST + 0] = 0;	//set PID of init to 0
 
 load(25,21);		//load init program
-load(26,22);	
+load(26,22);		//init doesn't have FAT entry or basic block
 load(27,23);	
 
 PTBR = 1024;		//physical address of page table
@@ -85,7 +82,7 @@ load (24, 18);
 alias i S0;
 i = 0;
 
-while (i<28) do		//Set memory free list values to used till page 25
+while (i<29) do		//Set memory free list values to used till page 28
 	[MEM_LIST + i] = 1;
 	i = i+1;
 endwhile;

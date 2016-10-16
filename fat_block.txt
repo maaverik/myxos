@@ -1,4 +1,4 @@
-even.xsm
+odd.xsm
 512
 24
 
@@ -6,17 +6,17 @@ even.xsm
 
 
 
-myfile.dat
+even.xsm
+512
+26
+
+
+
+
+
+-1
 0
-27
-
-
-
-
-
-Myfile.dat
-0
-28
+-1
 
 
 
