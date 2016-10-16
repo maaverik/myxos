@@ -11,6 +11,15 @@ if (sysCallNo == 10) then 		// Code for exit()
 	PCB = READY_LIST + 32*(PTBR-1024)/8;
 
 	alias i S2;
+
+	i = 0;
+	while (i < 32) do			// Signal all processes waiting for current one
+		if ([READY_LIST + 32 * i + 1] == 100 + (PTBR-1024)/8) then
+			[READY_LIST + 32 * i + 1] = 1;		// set process state to ready
+		endif;
+		counter = counter + 1;	
+	endwhile;
+
 	i = 0;
 	while (i < 32) do			// Check if this is the only process
 		if ([READY_LIST + 32*i + 1] == 1) then		// check if ready
@@ -76,6 +85,83 @@ if (sysCallNo == 10) then 		// Code for exit()
 	[newphysicalSP] = [nextPCB + 4];		// put new IP on top of stack
 
 	[nextPCB + 1] = 2;	// Set state to running
-	
+
+	ireturn;
+endif;
+
+
+if (sysCallNo == 13) then		// Code for Wait()
+	alias waitingPID S3;
+	waitingPID = [physicalSP - 3];
+
+	if ([READY_LIST + waitingPID*32 + 1] == 0 || [READY_LIST + waitingPID*32 + 1] == 2) then		//process running or terminated
+		print("Error waiting");
+		[physicalSP - 2] = -1;
+		ireturn;
+	endif;
+
+	alias PID S4;
+	PID = (PTBR - 1024)/8;
+	[READY_LIST + PID*32 + 1] = 100 + waitingPID;	// change state of current process
+
+	print("Waiting");
+
+	alias PCB S5;
+	PCB = READY_LIST + 32*(PTBR-1024)/8;
+	i = 0;
+	while (i < 32) do			// Check if this is the only process
+		if ([READY_LIST + 32*i + 1] == 1) then		// check if ready
+			break;
+		endif;
+		i = i + 1;
+	endwhile;
+
+	if (i == 32) then
+		print("No other process");
+		halt;
+	endif;
+
+	alias nextPID S8;
+	nextPID = i;
+	alias nextPCB S9;
+	nextPCB = READY_LIST + 32*nextPID;
+
+	BP = [nextPCB + 2];		// Set registers
+	SP = [nextPCB + 3];
+	PTBR = [nextPCB + 5];	// Can't directly assign IP so skipped
+	PTLR = [nextPCB + 6];
+	R0 = [nextPCB + 7];
+	R1 = [nextPCB + 8];
+	R2 = [nextPCB + 9];
+	R3 = [nextPCB + 10];
+	R4 = [nextPCB + 11];
+	R5 = [nextPCB + 12];
+	R6 = [nextPCB + 13];
+	R7 = [nextPCB + 14];
+
+	SP = SP + 1;		// For pushing IP
+	newphysicalSP = ([PTBR + (SP/512)]*512)  + (SP % 512);
+	[newphysicalSP] = [nextPCB + 4];		// put new IP on top of stack
+
+	[newphysicalSP - 2] = 0;
+	[nextPCB + 1] = 2;	// Set state to running
+
+	ireturn;
+endif;
+
+
+
+if (sysCallNo == 14) then 		// Code for Signal()
+	alias i S2;
+	i = 0;
+	while (i < 32) do			// Signal all processes waiting for current one
+		if ([READY_LIST + 32 * i + 1] == 100 + (PTBR-1024)/8) then
+			[READY_LIST + 32 * i + 1] = 1;		// set process state to ready
+		endif;
+		counter = counter + 1;	
+	endwhile;
+
+	print("Signal done");
+	[physicalSP - 2] = 0;
 	ireturn;
 endif;

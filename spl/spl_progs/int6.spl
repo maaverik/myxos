@@ -138,6 +138,8 @@ if (sysCallNo == 11) then		// Code for getpid()
   alias PID S2;
   PID = (PTBR - 1024) / 8;
   [physicalSP - 2] = PID;
+  print("PID is:");
+  print(PID);
   ireturn;
 endif;
 
@@ -146,5 +148,7 @@ if (sysCallNo == 12) then		// Code for getppid()
   alias PID S2;
   PID = (PTBR - 1024) / 8;
   [physicalSP - 2] = [READY_LIST + (2 * PID) + 31];		// PID of parent
+  print("PPID is:");
+  print([READY_LIST + (2 * PID) + 31]);
   ireturn;
 endif;
