@@ -24,8 +24,6 @@ PTLR = 4;			//page table has 4 entries
 
 [READY_LIST + 1] = 2;	//state of init process set to 2 (running)
 
-
-
 SP = 3 * 512;		//value set to starting logical address
 
 [28*512] = 0;		//physical address of the process stack set to 0 for implicitly setting IP to 0 on IRET

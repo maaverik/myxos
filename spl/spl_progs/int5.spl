@@ -4,7 +4,7 @@ physicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
 alias sysCallNo S1;
 sysCallNo = [physicalSP - 1];
 
-if (sysCallNo == 8)	then	//Code for Fork()
+if (sysCallNo == 8)	then			//Code for Fork()
 	print("Forking");
 	alias PID S2;
 	PID = (PTBR - 1024)/8;
@@ -34,7 +34,7 @@ if (sysCallNo == 8)	then	//Code for Fork()
 	alias i S5;
 	i = 0;
 
-	while (i < 4) do		// Find number of pages used by parent
+	while (i < PTLR) do				// Find number of pages used by parent
 		if (PTBR + i*2 + 1 == "01" || PTBR + i*2 + 1 == "11") then
 			pageCount = pageCount + 1;
 		endif;
@@ -42,7 +42,7 @@ if (sysCallNo == 8)	then	//Code for Fork()
 	endwhile;
 
 	i = 0;
-	while (i<64) do		// Check if there are enough free pages for child
+	while (i<64) do				// Check if there are enough free pages for child
 		if ([MEM_LIST + i] == 0) then
 			pageCount = pageCount - 1;
 		endif;
@@ -61,7 +61,7 @@ if (sysCallNo == 8)	then	//Code for Fork()
 	freePage = 0;
 	alias j S7;
 	i = 0;
-	while (i < 4) do		// Copy contents of each page
+	while (i < PTLR) do				// Copy contents of each page
 		if ([PTBR + i*2 + 1] == "00") then	// If page not allocated, skip copying
 			[childPTBR + i*2 + 1] = "00";
 			i = i+1;
@@ -91,10 +91,10 @@ if (sysCallNo == 8)	then	//Code for Fork()
 
 	[READY_LIST + newPID*32] = newPID;		
 	[READY_LIST + newPID*32 + 2] = BP;
-	[READY_LIST + newPID*32 + 3] = SP - 1; 	// parent has IP in stack
+	[READY_LIST + newPID*32 + 3] = SP - 1; 			// parent has IP in stack
 	[READY_LIST + newPID*32 + 4] = [physicalSP];		// IP is same as parent (it is logical address)
 	[READY_LIST + newPID*32 + 5] = childPTBR;
-	[READY_LIST + newPID*32 + 6] = 4;	// PTLR
+	[READY_LIST + newPID*32 + 6] = 4;					// PTLR
 	[READY_LIST + newPID*32 + 7] = R0;
 	[READY_LIST + newPID*32 + 8] = R1;
 	[READY_LIST + newPID*32 + 9] = R2;
@@ -105,7 +105,7 @@ if (sysCallNo == 8)	then	//Code for Fork()
 	[READY_LIST + newPID*32 + 14] = R7;
 
 	i = 0;
-	while (i < 8) do 		// update per-process and system wide file table entries
+	while (i < 8) do 				// update per-process and system wide file table entries
 		[READY_LIST + newPID*32 + 15 + i*2] = [READY_LIST + PID*32 + 15 + i*2];
 		[READY_LIST + newPID*32 + 15 + i*2 + 1] = [READY_LIST + PID*32 + 15 + i*2 + 1];
 		[FILE_TABLE + [READY_LIST + newPID*32 + 15 + i*2]*2 + 1] = [FILE_TABLE + [READY_LIST + newPID*32 + 15 + i*2]*2 + 1] + 1;
@@ -114,11 +114,11 @@ if (sysCallNo == 8)	then	//Code for Fork()
 
 	[READY_LIST + newPID * 32 + 1] = 1;		// State is ready
 
-	[physicalSP - 2] = newPID;		// PID of child is returned by parent
+	[physicalSP - 2] = newPID;				// PID of child is returned by parent
 
 	alias childPhysicalSP S8;
 	childPhysicalSP = ([childPTBR + 2 * ((SP - 1) / 512)] * 512) + ((SP - 1) % 512);
-	childPhysicalSP - 1] = -2;		// return value of child is -2
+	childPhysicalSP - 1] = -2;				// return value of child is -2
 
 	print("Success");
 	ireturn;

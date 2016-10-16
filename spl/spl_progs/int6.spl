@@ -1,0 +1,131 @@
+alias physicalSP S0;
+physicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
+
+alias sysCallNo S1;
+sysCallNo = [physicalSP - 1];
+
+if (sysCallNo == 9) then 		// Code for exec()
+	alias filename S2;
+	filename = [physicalSP - 3];
+
+	alias FATind S3;
+	FATind = 0;
+	
+	while (FATind < 64) do		// Search FAT for filename
+		if (filename == [FAT + FATind*8]) then
+			break;			
+		endif;		
+		FATind = FATind + 1;
+	endwhile;
+	
+	if (FATind  == 64) then
+		print("Doesn't exist");
+		[physicalSP - 2] = -1;
+		ireturn;
+	endif;
+
+	alias basicBlock S4;			// Load basic block to scratchpad
+	basicBlock = [FAT + FATind*8 + 2];
+	if (basicBlock == -1) then
+		print("Invalid Block");
+		[physicalSP - 2] = -1;
+		ireturn;
+	endif;
+	load(1, basicBlock);
+
+	alias countNew S4;
+	countNew = 0;
+	i = 0;
+
+	while (i < 256) do 			// Count number of code blocks in new process
+		if ([SCRATCHPAD + i] != "" && [SCRATCHAD + i] != -1) then
+			countNew = countNew + 1;
+		endif;
+		i = i+1;
+	endwhile;
+
+	if (countNew > 3) then			// only 3 code blocks allowed
+		print("Too many blocks");
+		[physicalSP - 2] = -1;
+		ireturn;
+	endif;
+
+	alias countOld S5;
+	countOld = 0;
+	i = 0;							// Count number of code pages in old process
+	while (i < PTLR - 1) do 				// Because last entry for stack
+		if ([PTBR + i*2 + 1] == "01" || [PTBR + i*2 + 1] == "11") then
+			countOld = countOld + 1;
+		endif;
+	i = i+1;
+	endwhile;
+
+	if (countOld > countNew) then		// Deallocate extra pages
+		while (countOld != countNew) do
+			countOld = countOld - 1;	// For correct indexing
+			[MEM_LIST + [PTBR + countOld*2]] = 0;	// Free page in memory free table
+			[PTBR + countOld*2 + 1] = "00";	// Invalidate PTBR entries
+			[PTBR + countOld*2] = -1;
+		endwhile;
+	endif;
+
+	if (countNew > countOld) then 	// Allocate extra pages
+		alias required S6;
+		required = countNew - countOld;
+		i = 0;
+		while (required > 0 && i < 64) do 	// Find out if there are enough free pages
+			if ([MEM_LIST + i] == 0) then
+				required = required - 1;
+			endif;
+			i = i+1;
+		endwhile;
+
+		if (i == 64 && required > 0) then
+			print("Insufficient memory");
+			[physicalSP - 2] = -1;
+			ireturn;
+		endif;
+
+		required = countNew - countOld;
+		i = 0;
+		while (required > 0 && i < 64) do 	// Allocate new pages
+			while ([MEM_LIST + i] == 1) then
+				i = i+1;
+			endwhile;
+			[MEM_LIST + i] = 1;
+			[PTBR + countOld*2] = i;
+			[PTBR + countOld*2 + 1] = "01";
+			countOld = countOld + 1;
+			required = required - 1;
+			i = i+1;
+		endwhile;
+	endif;
+
+	i = 0;
+	while (i < countNew) do 	// Load blocks into memory
+		load ([PTBR + i*2], [SCRATCHPAD + i]);
+		i = i+1;
+	endwhile;
+
+	i = 0;
+	while (i < 8) do 				// Close all files opened by current process
+		alias PCB S7;
+		PCB = READY_LIST + 32*(PTBR - 1024)/8;		
+		if ([PCB + 15 + i*2] != -1) then			// Decrement SWOFT count
+			[FILE_TABLE + [PCB + 15 + i*2]*2 + 1] = [FILE_TABLE + [PCB + 15 + i*2]*2 + 1] - 1;
+			
+			if ([FILE_TABLE + [PCB + 15 + i*2]*2 + 1] == 0) then	// Invalidate entry
+				[FILE_TABLE + [PCB + 15 + i*2]*2] = -1;
+			endif;
+
+			[PCB + 15 + i*2] = -1;		// Invalidate PPOFT entries
+			[PCB + 15 + i*2 + 1] = -1;
+		endif;
+		i = i+1;
+	endwhile;
+
+	SP = 3 * 512;				// Starting address of stack
+	newphysicalSP = ([PTBR + 2*(SP/512)] * 512) + (SP % 512);
+	[newphysicalSP] = 0;		// So IP is logical 0
+	ireturn;						// No return value required 	
+endif;

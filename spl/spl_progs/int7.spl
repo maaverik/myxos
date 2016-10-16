@@ -1,0 +1,16 @@
+alias physicalSP S0;
+physicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
+
+alias sysCallNo S1;
+sysCallNo = [physicalSP - 1];
+
+if (sysCallNo == 10) then 		// Code for exit()
+	alias PCB S3;
+	PCB = READY_LIST + 32*(PTBR-1024)/8;
+	alias next S2;
+	next = 0;
+	while (next < 32) do
+		if ([READY_LIST + 32*next + 1] == 1) then		// check if ready
+			break;
+		endif;
+		next = next + 1;
