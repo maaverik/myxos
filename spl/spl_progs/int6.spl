@@ -131,3 +131,20 @@ if (sysCallNo == 9) then 		// Code for exec()
 	print("Success");
 	ireturn;						// No return value required 	
 endif;
+
+
+
+if (sysCallNo == 11) then		// Code for getpid()
+  alias PID S2;
+  PID = (PTBR - 1024) / 8;
+  [physicalSP - 2] = PID;
+  ireturn;
+endif;
+
+
+if (sysCallNo == 12) then		// Code for getppid()
+  alias PID S2;
+  PID = (PTBR - 1024) / 8;
+  [physicalSP - 2] = [READY_LIST + (2 * PID) + 31];		// PID of parent
+  ireturn;
+endif;
