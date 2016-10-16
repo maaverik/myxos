@@ -36,10 +36,11 @@ if (sysCallNo == 9) then 		// Code for exec()
 
 	alias countNew S4;
 	countNew = 0;
+	alias i S10;
 	i = 0;
 
 	while (i < 256) do 			// Count number of code blocks in new process
-		if ([SCRATCHPAD + i] != "" && [SCRATCHAD + i] != -1) then
+		if ([SCRATCHPAD + i] != "" && [SCRATCHPAD + i] != -1) then
 			countNew = countNew + 1;
 		endif;
 		i = i+1;
@@ -90,7 +91,7 @@ if (sysCallNo == 9) then 		// Code for exec()
 		required = countNew - countOld;
 		i = 0;
 		while (required > 0 && i < 64) do 	// Allocate new pages
-			while ([MEM_LIST + i] == 1) then
+			while ([MEM_LIST + i] == 1) do
 				i = i+1;
 			endwhile;
 			[MEM_LIST + i] = 1;
@@ -126,6 +127,7 @@ if (sysCallNo == 9) then 		// Code for exec()
 	endwhile;
 
 	SP = 3 * 512;				// Starting address of stack
+	alias newphysicalSP S11;
 	newphysicalSP = ([PTBR + 2*(SP/512)] * 512) + (SP % 512);
 	[newphysicalSP] = 0;		// So IP is logical 0
 	print("Success");
@@ -147,8 +149,8 @@ endif;
 if (sysCallNo == 12) then		// Code for getppid()
   alias PID S2;
   PID = (PTBR - 1024) / 8;
-  [physicalSP - 2] = [READY_LIST + (2 * PID) + 31];		// PID of parent
+  [physicalSP - 2] = [READY_LIST + (32 * PID) + 31];		// PID of parent
   print("PPID is:");
-  print([READY_LIST + (2 * PID) + 31]);
+  print([READY_LIST + (32 * PID) + 31]);
   ireturn;
 endif;
