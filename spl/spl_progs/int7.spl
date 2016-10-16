@@ -5,12 +5,77 @@ alias sysCallNo S1;
 sysCallNo = [physicalSP - 1];
 
 if (sysCallNo == 10) then 		// Code for exit()
+	print("Exiting");
+	
 	alias PCB S3;
 	PCB = READY_LIST + 32*(PTBR-1024)/8;
-	alias next S2;
-	next = 0;
-	while (next < 32) do
-		if ([READY_LIST + 32*next + 1] == 1) then		// check if ready
+
+	alias i S2;
+	i = 0;
+	while (i < 32) do			// Check if this is the only process
+		if ([READY_LIST + 32*i + 1] == 1) then		// check if ready
 			break;
 		endif;
-		next = next + 1;
+		i = i + 1;
+	endwhile;
+
+	if (i == 32) then
+		print("No other process");
+		halt;
+	endif;
+
+	alias nextPID S8;
+	nextPID = i;
+
+	i = 0;
+	while (i < 8) do 				// Close all files opened by current process
+		alias PCB S7;
+		PCB = READY_LIST + 32*(PTBR - 1024)/8;		
+		if ([PCB + 15 + i*2] != -1) then			// Decrement SWOFT count
+			[FILE_TABLE + [PCB + 15 + i*2]*2 + 1] = [FILE_TABLE + [PCB + 15 + i*2]*2 + 1] - 1;
+			
+			if ([FILE_TABLE + [PCB + 15 + i*2]*2 + 1] == 0) then		// Invalidate entry
+				[FILE_TABLE + [PCB + 15 + i*2]*2] = -1;
+			endif;
+
+			[PCB + 15 + i*2] = -1;		// Invalidate PPOFT entries
+			[PCB + 15 + i*2 + 1] = -1;
+		endif;
+		i = i+1;
+	endwhile;
+
+	[PCB + 1] = 0;			// Process terminated
+
+	i = 0;
+	while (i < 4) do 		// Free used pages
+		if ([PTBR + i*2] != -1) then
+			[MEM_LIST + [PTBR + i*2]] = 0;
+			[PTBR + i*2] = -1;		// Invalidate PTBR
+			[PTBR + i*2 + 1] = "00";
+		endif;
+		i = i+1;
+	endwhile;
+
+	alias nextPCB S9;
+	nextPCB = READY_LIST + 32*nextPID;
+	BP = [nextPCB + 2];		// Set registers
+	SP = [nextPCB + 3];
+	PTBR = [nextPCB + 5];	// Can't directly assign IP so skipped
+	PTLR = [nextPCB + 6];
+	R0 = [nextPCB + 7];
+	R1 = [nextPCB + 8];
+	R2 = [nextPCB + 9];
+	R3 = [nextPCB + 10];
+	R4 = [nextPCB + 11];
+	R5 = [nextPCB + 12];
+	R6 = [nextPCB + 13];
+	R7 = [nextPCB + 14];
+
+	SP = SP + 1;		// For pushing IP
+	newphysicalSP = ([PTBR + (SP/512)]*512)  + (SP % 512);
+	[newphysicalSP] = [nextPCB + 4];		// put new IP on top of stack
+
+	[nextPCB + 1] = 2;	// Set state to running
+	
+	ireturn;
+endif;

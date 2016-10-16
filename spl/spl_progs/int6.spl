@@ -5,6 +5,7 @@ alias sysCallNo S1;
 sysCallNo = [physicalSP - 1];
 
 if (sysCallNo == 9) then 		// Code for exec()
+	print("Execing");
 	alias filename S2;
 	filename = [physicalSP - 3];
 
@@ -127,5 +128,6 @@ if (sysCallNo == 9) then 		// Code for exec()
 	SP = 3 * 512;				// Starting address of stack
 	newphysicalSP = ([PTBR + 2*(SP/512)] * 512) + (SP % 512);
 	[newphysicalSP] = 0;		// So IP is logical 0
+	print("Success");
 	ireturn;						// No return value required 	
 endif;
