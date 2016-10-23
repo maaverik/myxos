@@ -1,0 +1,67 @@
+alias Cause S0;
+alias VPagenum S1;
+alias Ip_addr S2;
+alias physicalSP;
+
+Cause = EFR % 10;				// Gets value of cause field (size 1 char)
+VPagenum = (EFR / 10) % 100;    // Gets value of BadVAddr 
+Ip_addr = (EFR/1000);		//Gets value of IP at the point of exception
+physicalSP = ([PTBR + (SP/512)*2] * 512) + (SP%512);
+
+if (Cause != 0) then			// Not page fault
+	if (Cause == 1) then
+		print("Illegal instruction");
+	endif;
+	else if (Cause == 2) then
+		print("Illegal mem access");
+	endif;
+	else if (Cause == 3) then
+		print("Arithmetic exception");
+	endif;
+	else if (Cause == 4) then
+		print("Illegal operand");
+	endif;
+	SP = SP + 1;
+	[physicalSP] = 10;			// sysCallNo
+	inline "JMP 11776";			// Jump to int 7 for exit
+endif;
+
+if ([PTBR + VPagenum*2] == -1) then		// Invalid page
+	SP = SP + 1;
+	[physicalSP - 1] = 10;
+	inline "JMP 11776";
+endif;
+
+alias i S4;
+i = 25;
+while (i < 64) do		// Find a free page
+	if ([MEM_LIST + i] == 0) then
+		[MEM_LIST + i] == 1;
+		alias freePage S5;
+		freePage = i;
+		break;
+	endif;
+	i = i+1;
+endwhile;
+
+// Second chance page replacement algorithm
+
+if (i == 64) then		// No free page
+	alias j S5;
+	j = PTBR - 1024 + VPagenum*2;			// Points to page that caused fault
+
+	while (1 == 1) do		// Scan all page table entries till victim is found
+		alias k S6;
+		k = (j + 2) % 256;
+		while (j != k) do
+			if (k %8 == 6) then 		// Page for stack
+				k = (k + 2) % 256;
+				continue;				// Skip stack
+			endif;
+
+			if ([PAGE_TABLE + k + 1] == "11") then		// Give second chance
+				[PAGE_TABLE + k + 1] = "01";		
+				continue;
+			endif;
+
+

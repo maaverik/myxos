@@ -52,62 +52,35 @@ if (sysCallNo == 9) then 		// Code for exec()
 		ireturn;
 	endif;
 
-	alias countOld S5;
-	countOld = 0;
 	i = 0;							// Count number of code pages in old process
 	while (i < PTLR - 1) do 				// Because last entry for stack
 		if ([PTBR + i*2 + 1] == "01" || [PTBR + i*2 + 1] == "11") then
-			countOld = countOld + 1;
-		endif;
-	i = i+1;
-	endwhile;
-
-	if (countOld > countNew) then		// Deallocate extra pages
-		while (countOld != countNew) do
-			countOld = countOld - 1;	// For correct indexing
-			[MEM_LIST + [PTBR + countOld*2]] = 0;	// Free page in memory free table
-			[PTBR + countOld*2 + 1] = "00";	// Invalidate PTBR entries
-			[PTBR + countOld*2] = -1;
-		endwhile;
-	endif;
-
-	if (countNew > countOld) then 	// Allocate extra pages
-		alias required S6;
-		required = countNew - countOld;
-		i = 0;
-		while (required > 0 && i < 64) do 	// Find out if there are enough free pages
-			if ([MEM_LIST + i] == 0) then
-				required = required - 1;
-			endif;
-			i = i+1;
-		endwhile;
-
-		if (i == 64 && required > 0) then
-			print("Insufficient memory");
-			[physicalSP - 2] = -1;
-			ireturn;
+		[MEM_LIST + [PTBR + i*2]] = [MEM_LIST + [PTBR + i*2]] - 1;		// No. pf processes sharing a page
 		endif;
 
-		required = countNew - countOld;
-		i = 0;
-		while (required > 0 && i < 64) do 	// Allocate new pages
-			while ([MEM_LIST + i] == 1) do
-				i = i+1;
-			endwhile;
-			[MEM_LIST + i] = 1;
-			[PTBR + countOld*2] = i;
-			[PTBR + countOld*2 + 1] = "01";
-			countOld = countOld + 1;
-			required = required - 1;
-			i = i+1;
-		endwhile;
-	endif;
+		if ([PTBR + i*2 + 1] == "00" && [PTBR + i*2] > 447) then
+			[DISK_LIST + [PTBR + i*2]] = [DISK_LIST + [PTBR + i*2]] - 1;	// No. of processes sharing a swap block
+			store(6, 20);
+		endif;
 
-	i = 0;
-	while (i < countNew) do 	// Load blocks into memory
-		load ([PTBR + i*2], [SCRATCHPAD + i]);
 		i = i+1;
 	endwhile;
+
+	while (i < countNew) do 			// Page table is initialised with disk blocks of new process
+		[PTBR + i*2] = [SCRATCHPAD + i];
+		[PTBR + i*2 + 1] = "00";
+		i = i+1;
+	endwhile;
+
+	while (i < 3) do 						// Invalidate rest of the entries
+		[PTBR + i*2] = -1;
+		[PTBR + i*2 + 1] = "00";
+		i = i+1;
+	endwhile;
+
+	[PTBR + (PTLR - 1)] = "01";		// For stack
+
+	
 
 	i = 0;
 	while (i < 8) do 				// Close all files opened by current process

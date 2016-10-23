@@ -65,11 +65,22 @@ if (sysCallNo == 10) then 		// Code for exit()
 
 	i = 0;
 	while (i < 4) do 		// Free used pages
-		if ([PTBR + i*2] != -1) then
-			[MEM_LIST + [PTBR + i*2]] = 0;
-			[PTBR + i*2] = -1;		// Invalidate PTBR
-			[PTBR + i*2 + 1] = "00";
+		if ([PTBR + i*2] == -1) then		// Already invalid
+			i = i+1;
+			continue;
 		endif;
+
+		if ([PTBR + i*2 + 1] == "01" || [PTBR + i*2 + 1] == "11") then		// Decrement memory shared count
+			[MEM_LIST + [PTBR + i*2]] = [MEM_LIST + [PTBR + i*2]] - 1;
+		endif;
+
+		if ([PTBR + i*2 + 1] == "00" && [PTBR + i*2 ] > 447) then			// Decrement swap shared count
+			[DISK_LIST + [PTBR + i*2]] = [DISK_LIST + [PTBR + i*2]] - 1;
+			store(6, 20);
+		endif;
+
+		[PTBR + i*2] = -1;
+		[PTBR + i*2 + 1] = "00";
 		i = i+1;
 	endwhile;
 
