@@ -47,12 +47,12 @@ endwhile;
 // Second chance page replacement algorithm
 
 if (i == 64) then		// No free page
-	alias j S5;
-	j = PTBR - 1024 + VPagenum*2;			// Points to page that caused fault
+	alias faultInd S5;
+	faultInd = PTBR - 1024 + VPagenum*2;			// Points to page that caused fault
 
 	while (1 == 1) do		// Scan all page table entries till victim is found
 		alias k S6;
-		k = (j + 2) % 256;
+		k = (faultInd + 2) % 256;
 		while (j != k) do
 			if (k %8 == 6) then 		// Page for stack
 				k = (k + 2) % 256;
@@ -64,4 +64,65 @@ if (i == 64) then		// No free page
 				continue;
 			endif;
 
+			if ([PAGE_TABLE + k + 1] == "01") then		// Potential victim page
+				if ([MEM_LIST + [PAGE_TABLE + k]] > 1) then 		// Shared page so skip
+					k = (k+2) % 256;
+					continue;
+				endif;
 
+				// Now we have a victim
+
+				alias swapInd S7;
+				swapInd = 448;
+				while (swapInd < 512) do
+					if (DISK_LIST + swapInd] == 0) then		// Swap out the page
+						store([PAGE_TABLE + k], swapInd);
+						[DISK_LIST + swapInd] = 1;				// Mark as used
+
+						alias freePage S8;
+						freePage = [PAGE_TABLE + k];
+						[PAGE_TABLE + k] = swapInd;			// PTBR entry points to swap block
+						[PAGE_TABLE + k + 1] = "00";			// Entry invalid
+
+						break;
+					endif;
+				endwhile;
+
+				if (swapInd == 512) then 			// No space to swap out
+					print("Can't swap out");
+					SP = SP + 1;
+					[physicalSP] = 10;
+					inline "JMP 11776";
+				
+				else
+					break;
+				endif;
+
+			endif;
+		endwhile;
+
+		if (faultPage != k) then		// We have a valid freePage
+			break;
+		endif;
+	endwhile;
+endif;
+
+// Load required block to the free page
+
+if (VPagenum > 20 && VPagenum < 448) then			// disk block number
+	load(freePage, [PAGE_TABLE + VPagenum*2]);
+endif;
+
+if (VPagenum > 447) then							 	// swap block number
+	load (freePage, VPagenum);
+	[DISK_LIST + [PAGE_TABLE + VPagenum*2]] = [DISK_LIST + [PAGE_TABLE + VPagenum*2]] - 1;
+endif;
+
+[PTBR + VPagenum*2] = freePage;			// Set PTBR entries for current process
+[PTBR + VPagenum*2 + 1] = "11";
+
+SP = SP + 1;				// For ireturn
+physicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
+[physicalSP] = IPAddress;
+ireturn;
+	
