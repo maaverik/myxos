@@ -1,25 +1,27 @@
 alias Cause S0;
 alias VPagenum S1;
 alias Ip_addr S2;
-alias physicalSP;
+alias physicalSP S3;
 
 Cause = EFR % 10;				// Gets value of cause field (size 1 char)
 VPagenum = (EFR / 10) % 100;    // Gets value of BadVAddr 
 Ip_addr = (EFR/1000);		//Gets value of IP at the point of exception
 physicalSP = ([PTBR + (SP/512)*2] * 512) + (SP%512);
 
+print("In exhandler");
+
 if (Cause != 0) then			// Not page fault
 	if (Cause == 1) then
 		print("Illegal instruction");
 	endif;
-	else if (Cause == 2) then
+	if (Cause == 2) then
 		print("Illegal mem access");
 	endif;
-	else if (Cause == 3) then
+	if (Cause == 3) then
 		print("Arithmetic exception");
 	endif;
-	else if (Cause == 4) then
-		print("Illegal operand");
+	if (Cause == 4) then
+		print("Illegal Operand");
 	endif;
 	SP = SP + 1;
 	[physicalSP] = 10;			// sysCallNo
@@ -28,16 +30,16 @@ endif;
 
 if ([PTBR + VPagenum*2] == -1) then		// Invalid page
 	SP = SP + 1;
-	[physicalSP - 1] = 10;
+	[physicalSP] = 10;
 	inline "JMP 11776";
 endif;
 
 alias i S4;
+alias freePage S8;		
 i = 25;
 while (i < 64) do		// Find a free page
 	if ([MEM_LIST + i] == 0) then
-		[MEM_LIST + i] == 1;
-		alias freePage S5;
+		[MEM_LIST + i] = 1;
 		freePage = i;
 		break;
 	endif;
@@ -53,14 +55,16 @@ if (i == 64) then		// No free page
 	while (1 == 1) do		// Scan all page table entries till victim is found
 		alias k S6;
 		k = (faultInd + 2) % 256;
-		while (j != k) do
+
+		while (faultInd != k) do
 			if (k %8 == 6) then 		// Page for stack
 				k = (k + 2) % 256;
 				continue;				// Skip stack
 			endif;
 
 			if ([PAGE_TABLE + k + 1] == "11") then		// Give second chance
-				[PAGE_TABLE + k + 1] = "01";		
+				[PAGE_TABLE + k + 1] = "01";
+				k = (k+2) % 256;		
 				continue;
 			endif;
 
@@ -75,11 +79,10 @@ if (i == 64) then		// No free page
 				alias swapInd S7;
 				swapInd = 448;
 				while (swapInd < 512) do
-					if (DISK_LIST + swapInd] == 0) then		// Swap out the page
+					if ([DISK_LIST + swapInd] == 0) then		// Swap out the page
 						store([PAGE_TABLE + k], swapInd);
 						[DISK_LIST + swapInd] = 1;				// Mark as used
 
-						alias freePage S8;
 						freePage = [PAGE_TABLE + k];
 						[PAGE_TABLE + k] = swapInd;			// PTBR entry points to swap block
 						[PAGE_TABLE + k + 1] = "00";			// Entry invalid
@@ -101,7 +104,7 @@ if (i == 64) then		// No free page
 			endif;
 		endwhile;
 
-		if (faultPage != k) then		// We have a valid freePage
+		if (faultInd != k) then		// We have a valid freePage
 			break;
 		endif;
 	endwhile;
@@ -109,12 +112,12 @@ endif;
 
 // Load required block to the free page
 
-if (VPagenum > 20 && VPagenum < 448) then			// disk block number
+if ([PAGE_TABLE + VPagenum*2] > 20 && [PAGE_TABLE + VPagenum*2] < 448) then			// disk block number
 	load(freePage, [PAGE_TABLE + VPagenum*2]);
 endif;
 
-if (VPagenum > 447) then							 	// swap block number
-	load (freePage, VPagenum);
+if ([PAGE_TABLE + VPagenum*2] > 447) then							 	// swap block number
+	load (freePage, [PAGE_TABLE + VPagenum*2]);
 	[DISK_LIST + [PAGE_TABLE + VPagenum*2]] = [DISK_LIST + [PAGE_TABLE + VPagenum*2]] - 1;
 endif;
 
@@ -123,6 +126,7 @@ endif;
 
 SP = SP + 1;				// For ireturn
 physicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
-[physicalSP] = IPAddress;
+[physicalSP] = Ip_addr;
+print("Handled");
 ireturn;
 	

@@ -15,11 +15,11 @@ PTBR = 1024;		//physical address of page table
 PTLR = 4;			//page table has 4 entries
 
 [PTBR + 0] = 21; 	//set up entries for init program in page table
-[PTBR + 1] = "01";	
+[PTBR + 1] = "00";	
 [PTBR + 2] = 22; 		//The code block no. is stored instead of physical page no. for stage 10
-[PTBR + 3] = "01";
+[PTBR + 3] = "00";
 [PTBR + 4] = 23; 
-[PTBR + 5] = "01";
+[PTBR + 5] = "00";
 [PTBR + 6] = 25; 		//Memory is allocated for stack
 [PTBR + 7] = "01";
 
@@ -27,7 +27,7 @@ PTLR = 4;			//page table has 4 entries
 
 SP = 3 * 512;		//value set to starting logical address
 
-[28*512] = 0;		//physical address of the process stack set to 0 for implicitly setting IP to 0 on IRET
+[25*512] = 0;		//physical address of the process stack set to 0 for implicitly setting IP to 0 on IRET
 
 load (11, 5);		// interrupt 1
 load (12, 6);
@@ -47,8 +47,9 @@ while ( counter <  128) do			// 64 entries, each of size 2 words
 	counter = counter + 2;			// Move to next entry
 endwhile;	
 
-i = 15
-while (i < 31)						//Setting up the Per-Process File Open table
+alias i S0;
+i = 15;
+while (i < 31)	do						//Setting up the Per-Process File Open table
 	[READY_LIST + i] = -1;
 	i = i+1;
 endwhile;
@@ -73,7 +74,6 @@ load (22, 16);
 load (23, 17);		//interrupt 7
 load (24, 18);
 
-alias i S0;
 i = 0;
 
 while (i<26) do		//Set memory free list values to used till page 25 (stack for init)
@@ -99,5 +99,7 @@ while (i < 512) do
 endwhile;
 
 store(6, 20);			//Commit DFL
+
+print("Startup done");
 
 ireturn;

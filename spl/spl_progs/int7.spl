@@ -4,8 +4,12 @@ physicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
 alias sysCallNo S1;
 sysCallNo = [physicalSP - 1];
 
+alias i S13;
+alias nextPID S8;	
+alias PCB S7;
+		
 if (sysCallNo == 10 || sysCallNo == 14) then			// To reduce number of code pages
-	alias i S2;
+	
 	i = 0;
 	while (i < 32) do			// Signal all processes waiting for current one
 		if ([READY_LIST + 32 * i + 1] == 100 + (PTBR-1024)/8) then
@@ -21,32 +25,31 @@ if (sysCallNo == 10 || sysCallNo == 14) then			// To reduce number of code pages
 	endif;
 endif;
 
+
+if (sysCallNo == 10 || sysCallNo == 13) then			// To reduce nummber of code pages
+	nextPID = 0;
+	while (nextPID < 32) do			// Check if this is the only process
+		if ([READY_LIST + 32*nextPID + 1] == 1) then		// check if ready
+			break;
+		endif;
+		nextPID = nextPID + 1;
+	endwhile;
+
+endif;
+
+
+
 if (sysCallNo == 10) then 		// Code for exit()
 	print("Exiting");
 	
-	alias PCB S3;
-	PCB = READY_LIST + 32*(PTBR-1024)/8;
-
-	alias i S13;
-	i = 0;
-	while (i < 32) do			// Check if this is the only process
-		if ([READY_LIST + 32*i + 1] == 1) then		// check if ready
-			break;
-		endif;
-		i = i + 1;
-	endwhile;
-
-	if (i == 32) then
+	if (nextPID == 32) then
 		print("No other process");
 		halt;
 	endif;
 
-	alias nextPID S8;
-	nextPID = i;
 
 	i = 0;
 	while (i < 8) do 				// Close all files opened by current process
-		alias PCB S7;
 		PCB = READY_LIST + 32*(PTBR - 1024)/8;		
 		if ([PCB + 15 + i*2] != -1) then			// Decrement SWOFT count
 			[FILE_TABLE + [PCB + 15 + i*2]*2 + 1] = [FILE_TABLE + [PCB + 15 + i*2]*2 + 1] - 1;
@@ -127,23 +130,6 @@ if (sysCallNo == 13) then		// Code for Wait()
 endif;
 
 if (sysCallNo == 10 || sysCallNo == 13) then			// To reduce nummber of code pages
-	alias i S3;
-	i = 0;
-	while (i < 32) do			// Check if this is the only process
-		if ([READY_LIST + 32*i + 1] == 1) then		// check if ready
-			break;
-		endif;
-		i = i + 1;
-	endwhile;
-
-	if (i == 32) then
-		print("No other process");
-		halt;
-	endif;
-
-	alias nextPID S8;
-	nextPID = i;
-
 	alias nextPCB S9;
 	nextPCB = READY_LIST + 32*nextPID;
 
@@ -165,7 +151,10 @@ if (sysCallNo == 10 || sysCallNo == 13) then			// To reduce nummber of code page
 	newphysicalSP = ([PTBR + 2*(SP/512)]*512)  + (SP % 512);
 	[newphysicalSP] = [nextPCB + 4];		// put new IP on top of stack
 
-	[newphysicalSP - 2] = 0;
 	[nextPCB + 1] = 2;	// Set state to running
-	ireturn;
+
+	print([PCB]);
+	print("Exited");
 endif;
+
+ireturn;

@@ -12,6 +12,8 @@ if (sysCallNo == 9) then 		// Code for exec()
 	alias FATind S3;
 	FATind = 0;
 	
+	//print("1");
+
 	while (FATind < 64) do		// Search FAT for filename
 		if (filename == [FAT + FATind*8]) then
 			break;			
@@ -24,6 +26,8 @@ if (sysCallNo == 9) then 		// Code for exec()
 		[physicalSP - 2] = -1;
 		ireturn;
 	endif;
+
+	//print("2");
 
 	alias basicBlock S4;			// Load basic block to scratchpad
 	basicBlock = [FAT + FATind*8 + 2];
@@ -52,19 +56,22 @@ if (sysCallNo == 9) then 		// Code for exec()
 		ireturn;
 	endif;
 
+	//print("3");
+
 	i = 0;							// Count number of code pages in old process
 	while (i < PTLR - 1) do 				// Because last entry for stack
 		if ([PTBR + i*2 + 1] == "01" || [PTBR + i*2 + 1] == "11") then
-		[MEM_LIST + [PTBR + i*2]] = [MEM_LIST + [PTBR + i*2]] - 1;		// No. pf processes sharing a page
+		[MEM_LIST + [PTBR + i*2]] = [MEM_LIST + [PTBR + i*2]] - 1;		// Decrement No. pf processes sharing a page
 		endif;
 
 		if ([PTBR + i*2 + 1] == "00" && [PTBR + i*2] > 447) then
-			[DISK_LIST + [PTBR + i*2]] = [DISK_LIST + [PTBR + i*2]] - 1;	// No. of processes sharing a swap block
-			store(6, 20);
+			[DISK_LIST + [PTBR + i*2]] = [DISK_LIST + [PTBR + i*2]] - 1;	// Decrement No. of processes sharing a swap block
 		endif;
 
 		i = i+1;
 	endwhile;
+
+	//print("4");
 
 	while (i < countNew) do 			// Page table is initialised with disk blocks of new process
 		[PTBR + i*2] = [SCRATCHPAD + i];
@@ -72,15 +79,17 @@ if (sysCallNo == 9) then 		// Code for exec()
 		i = i+1;
 	endwhile;
 
+	//breakpoint;
+
 	while (i < 3) do 						// Invalidate rest of the entries
 		[PTBR + i*2] = -1;
 		[PTBR + i*2 + 1] = "00";
 		i = i+1;
 	endwhile;
 
-	[PTBR + (PTLR - 1)] = "01";		// For stack
+	[PTBR + 7] = "01";		// For stack
 
-	
+	//print("5");
 
 	i = 0;
 	while (i < 8) do 				// Close all files opened by current process
@@ -98,6 +107,8 @@ if (sysCallNo == 9) then 		// Code for exec()
 		endif;
 		i = i+1;
 	endwhile;
+
+	//print("6");
 
 	SP = 3 * 512;				// Starting address of stack
 	alias newphysicalSP S11;

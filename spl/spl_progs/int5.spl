@@ -67,7 +67,7 @@ if (sysCallNo == 8)	then			//Code for Fork()
 		[childPTBR + i*2] = [PTBR + i*2];
 		[childPTBR + i*2 + 1] = [PTBR + i*2 + 1];
 		
-		if ([PTBR + i*2 + 1] == "01" or [PTBR + i*2 + 1] == "11") then
+		if ([PTBR + i*2 + 1] == "01" || [PTBR + i*2 + 1] == "11") then
 			[MEM_LIST + [PTBR + i*2]] = [MEM_LIST + [PTBR + i*2]] + 1;		// No. pf processes sharing a page
 		endif;
 		
@@ -115,7 +115,6 @@ if (sysCallNo == 8)	then			//Code for Fork()
 	[childPhysicalSP - 1] = -2;				// return value of child is -2
 
 	print("Success");
-	breakpoint;
 	ireturn;
 
 endif;
