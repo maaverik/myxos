@@ -5,7 +5,7 @@ alias sysCallNo S1;
 sysCallNo = [physicalSP - 1];
 
 if (sysCallNo == 8)	then			//Code for Fork()
-	print("Forking");
+	//print("Forking");
 	alias PID S2;
 	PID = (PTBR - 1024)/8;
 
@@ -114,7 +114,7 @@ if (sysCallNo == 8)	then			//Code for Fork()
 	childPhysicalSP = ([childPTBR + 2 * ((SP - 1) / 512)] * 512) + ((SP - 1) % 512);
 	[childPhysicalSP - 1] = -2;				// return value of child is -2
 
-	print("Success");
+	//print("Success");
 	ireturn;
 
 endif;

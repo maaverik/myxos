@@ -5,7 +5,7 @@ alias sysCallNo S1;
 sysCallNo = [physicalSP - 1];
 
 if (sysCallNo == 9) then 		// Code for exec()
-	print("Execing");
+	//print("Execing");
 	alias filename S2;
 	filename = [physicalSP - 3];
 
@@ -39,16 +39,7 @@ if (sysCallNo == 9) then 		// Code for exec()
 	load(1, basicBlock);
 
 	alias countNew S4;
-	countNew = 0;
-	alias i S10;
-	i = 0;
-
-	while (i < 256) do 			// Count number of code blocks in new process
-		if ([SCRATCHPAD + i] != "" && [SCRATCHPAD + i] != -1) then
-			countNew = countNew + 1;
-		endif;
-		i = i+1;
-	endwhile;
+	countNew = [FAT + FATind * 8 + 1]/512;
 
 	if (countNew > 3) then			// only 3 code blocks allowed
 		print("Too many blocks");
@@ -58,6 +49,7 @@ if (sysCallNo == 9) then 		// Code for exec()
 
 	//print("3");
 
+	alias i S10;
 	i = 0;							// Count number of code pages in old process
 	while (i < PTLR - 1) do 				// Because last entry for stack
 		if ([PTBR + i*2 + 1] == "01" || [PTBR + i*2 + 1] == "11") then
@@ -73,6 +65,7 @@ if (sysCallNo == 9) then 		// Code for exec()
 
 	//print("4");
 
+	i = 0;
 	while (i < countNew) do 			// Page table is initialised with disk blocks of new process
 		[PTBR + i*2] = [SCRATCHPAD + i];
 		[PTBR + i*2 + 1] = "00";
@@ -114,7 +107,7 @@ if (sysCallNo == 9) then 		// Code for exec()
 	alias newphysicalSP S11;
 	newphysicalSP = ([PTBR + 2*(SP/512)] * 512) + (SP % 512);
 	[newphysicalSP] = 0;		// So IP is logical 0
-	print("Success");
+	//print("Success");
 	ireturn;						// No return value required 	
 endif;
 

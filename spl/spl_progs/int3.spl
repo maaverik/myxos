@@ -6,7 +6,7 @@ sysCallNo = [physicalSP - 1];
 
 
 if (sysCallNo == 6) then		//Code for Seek()
-  print("Seeking");
+  //print("Seeking");
   alias fileDescriptor S2;
   alias newLseek S3;
   newLseek = [physicalSP - 3]; //Getting arguments from stack
@@ -49,7 +49,7 @@ endif;
 
 
 if (sysCallNo == 7) then	//Code for Read()
-  print("Reading");
+  //print("Reading");
   alias fileDescriptor S2;
   alias wordToRead S3;
   

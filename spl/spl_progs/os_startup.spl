@@ -1,7 +1,7 @@
 load(7,1);			//load exception handler
 load(8,2);
 
-print("In startup");
+//print("In startup");
 
 [READY_LIST + 0] = 0;	//set PID of init to 0
 
@@ -100,6 +100,8 @@ endwhile;
 
 store(6, 20);			//Commit DFL
 
-print("Startup done");
+//print("Startup done");
+
+breakpoint;
 
 ireturn;

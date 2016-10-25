@@ -6,9 +6,9 @@ alias physicalSP S3;
 Cause = EFR % 10;				// Gets value of cause field (size 1 char)
 VPagenum = (EFR / 10) % 100;    // Gets value of BadVAddr 
 Ip_addr = (EFR/1000);		//Gets value of IP at the point of exception
-physicalSP = ([PTBR + (SP/512)*2] * 512) + (SP%512);
+physicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
 
-print("In exhandler");
+//print("In exhandler");
 
 if (Cause != 0) then			// Not page fault
 	if (Cause == 1) then
@@ -48,24 +48,20 @@ endwhile;
 
 // Second chance page replacement algorithm
 
+
 if (i == 64) then		// No free page
 	alias faultInd S5;
+	alias k S6;
+	alias swapInd S7;
 	faultInd = PTBR - 1024 + VPagenum*2;			// Points to page that caused fault
 
 	while (1 == 1) do		// Scan all page table entries till victim is found
-		alias k S6;
 		k = (faultInd + 2) % 256;
 
 		while (faultInd != k) do
 			if (k %8 == 6) then 		// Page for stack
 				k = (k + 2) % 256;
 				continue;				// Skip stack
-			endif;
-
-			if ([PAGE_TABLE + k + 1] == "11") then		// Give second chance
-				[PAGE_TABLE + k + 1] = "01";
-				k = (k+2) % 256;		
-				continue;
 			endif;
 
 			if ([PAGE_TABLE + k + 1] == "01") then		// Potential victim page
@@ -76,7 +72,6 @@ if (i == 64) then		// No free page
 
 				// Now we have a victim
 
-				alias swapInd S7;
 				swapInd = 448;
 				while (swapInd < 512) do
 					if ([DISK_LIST + swapInd] == 0) then		// Swap out the page
@@ -89,19 +84,25 @@ if (i == 64) then		// No free page
 
 						break;
 					endif;
+					swapInd = swapInd + 1;
 				endwhile;
 
 				if (swapInd == 512) then 			// No space to swap out
 					print("Can't swap out");
 					SP = SP + 1;
 					[physicalSP] = 10;
-					inline "JMP 11776";
-				
+					inline "JMP 11776";				
 				else
 					break;
 				endif;
 
 			endif;
+
+			if ([PAGE_TABLE + k + 1] == "11") then		// Give second chance
+				[PAGE_TABLE + k + 1] = "01";
+			endif;
+
+			k = (k+2) % 256;	
 		endwhile;
 
 		if (faultInd != k) then		// We have a valid freePage
@@ -112,21 +113,34 @@ endif;
 
 // Load required block to the free page
 
+print("1");
+
 if ([PAGE_TABLE + VPagenum*2] > 20 && [PAGE_TABLE + VPagenum*2] < 448) then			// disk block number
 	load(freePage, [PAGE_TABLE + VPagenum*2]);
 endif;
+
+print("2");
 
 if ([PAGE_TABLE + VPagenum*2] > 447) then							 	// swap block number
 	load (freePage, [PAGE_TABLE + VPagenum*2]);
 	[DISK_LIST + [PAGE_TABLE + VPagenum*2]] = [DISK_LIST + [PAGE_TABLE + VPagenum*2]] - 1;
 endif;
 
+print("3");
+
 [PTBR + VPagenum*2] = freePage;			// Set PTBR entries for current process
 [PTBR + VPagenum*2 + 1] = "11";
 
+print("4");
+
 SP = SP + 1;				// For ireturn
 physicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
+
+print(physicalSP);
 [physicalSP] = Ip_addr;
-print("Handled");
+//print("Handled");
+
+breakpoint;
+
 ireturn;
 	

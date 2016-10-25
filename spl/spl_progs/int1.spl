@@ -8,7 +8,7 @@ alias filename S2;
 filename = [physicalSP - 3];
  		
 if ( sysCallNo == 1) then		// Code for Create()
-	print("Creating");
+	//print("Creating");
 	alias FATind S4;
 	FATind = 0;
 	
@@ -74,7 +74,7 @@ if ( sysCallNo == 1) then		// Code for Create()
 	store(5, 19);	// store the FAT
 	store(6, 20);	// store the Disk Free List
 	
-	print("Success");
+	//print("Success");
 	[physicalSP - 2] = 0;    //RETURN 0 FOR SUCCESS
 	ireturn;
 

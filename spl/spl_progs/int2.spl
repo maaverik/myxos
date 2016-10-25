@@ -5,7 +5,7 @@ alias sysCallNo S1;
 sysCallNo = [physicalSP - 1];
 
 if ( sysCallNo == 2) then		// Code for Open()
-	print("Opening");
+	//print("Opening");
 	alias filename S2;
 	filename = [physicalSP - 3];
 

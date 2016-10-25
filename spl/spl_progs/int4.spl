@@ -5,7 +5,7 @@ alias sysCallNo S1;
 sysCallNo = [physicalSP - 1];
 
 if (sysCallNo == 5) then		//Code for Write()
-  print("Writing");
+  //print("Writing");
   alias fileDescriptor S2;
   alias wordToWrite S3;
   wordToWrite = [physicalSP - 3]; 	//Getting arguments from stack

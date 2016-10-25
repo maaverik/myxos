@@ -19,7 +19,7 @@ if (sysCallNo == 10 || sysCallNo == 14) then			// To reduce number of code pages
 	endwhile;
 
 	if (sysCallNo == 14) then
-		print("Signal done");
+		//print("Signal done");
 		[physicalSP - 2] = 0;
 		ireturn;
 	endif;
@@ -40,7 +40,7 @@ endif;
 
 
 if (sysCallNo == 10) then 		// Code for exit()
-	print("Exiting");
+	//print("Exiting");
 	
 	if (nextPID == 32) then
 		print("No other process");
@@ -106,7 +106,7 @@ if (sysCallNo == 13) then		// Code for Wait()
 	PID = (PTBR - 1024)/8;
 	[READY_LIST + PID*32 + 1] = 100 + waitingPID;	// change state of current process
 
-	print("Waiting");
+	//print("Waiting");
 
 	alias PCB S5;
 	PCB = READY_LIST + 32*(PTBR-1024)/8;
@@ -153,8 +153,8 @@ if (sysCallNo == 10 || sysCallNo == 13) then			// To reduce nummber of code page
 
 	[nextPCB + 1] = 2;	// Set state to running
 
-	print([PCB]);
-	print("Exited");
+	//print([PCB]);
+	//print("Exited");
 endif;
 
 ireturn;
