@@ -32,7 +32,7 @@ integer main()
 			if(ret == 0) then 
 				print("Success");
 			else
-				print("WE");
+				//print("WE");
 			endif;
 		endif;
 

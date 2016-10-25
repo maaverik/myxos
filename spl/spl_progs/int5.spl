@@ -32,7 +32,7 @@ if (sysCallNo == 8)	then			//Code for Fork()
 	pageCount = 0;
 
 	alias i S5;
-	i = 0;
+	i = 25;
 
 	while (i < 64) do					// Check for one free page
 		if ([MEM_LIST + i] == 0) then
