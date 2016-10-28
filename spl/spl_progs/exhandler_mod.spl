@@ -2,49 +2,56 @@ alias Cause S0;
 alias BadVAddr S1;
 alias IPAddress S2;
 
-alias counter S3;
+alias i S3;
 alias freePageIndex S4;
 alias PTBRCounter S5;
 alias VPagenum S9;
-alias TRUE S11;
-TRUE = 1;	
 
 Cause = EFR % 10;		// Gets value of cause field (size 1 char)
 BadVAddr = (EFR / 10) % 100;    // Gets value of BadVAddr 
-IPAddress = (EFR / 1000);		//Gets value of IP at the point
-VPagenum = [PTBR + BadVAddr * 2];
+IPAddress = (EFR / 1000);		// Gets value of IP at the point
+VPagenum = [PTBR + BadVAddr * 2];	// Value corresponding to page fault
 
 alias physicalSP S10;
 physicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
 
 
 if (Cause != 0) then
-	// do the same things you would do for exit??
+	if (Cause == 1) then
+		print("Illegal instruction");
+	endif;
+	if (Cause == 2) then
+		print("Illegal mem access");
+	endif;
+	if (Cause == 3) then
+		print("Arithmetic exception");
+	endif;
+	if (Cause == 4) then
+		print("Illegal Operand");
+	endif;
 	SP = SP + 1;
 	[physicalSP] = 10;
 	inline "JMP 11776";
 endif;
 
-if (VPagenum == -1) then
-	// invalid page
+if (VPagenum == -1) then 	// invalid page
 	SP = SP + 1;
 	[physicalSP] = 10;
 	inline "JMP 11776";
 endif;
 
-// try to find a free page
 
-counter = 25;
-while (counter < 64) do
-	if ([MEM_LIST + counter] == 0) then
-		freePageIndex = counter;
-		[MEM_LIST + counter] = 1;
+i = 25;			
+while (i < 64) do 	// try to find a free page
+	if ([MEM_LIST + i] == 0) then
+		freePageIndex = i;
+		[MEM_LIST + i] = 1;
 		break;
 	endif;
-	counter = counter + 1;
+	i = i + 1;
 endwhile;
 
-if (counter == 64) then		// no memory entry free
+if (i == 64) then		// no memory entry free
 	
 	alias startPTEntry S6;
 	alias PTEntryCounter S7;
@@ -53,11 +60,7 @@ if (counter == 64) then		// no memory entry free
 	// find the entry that lead to the exception
 	startPTEntry = PTBR - 1024 + BadVAddr * 2;
 	
-	while (TRUE == 1) do
-		
-		// keep doing until a victim page is selected
-		
-		// we have to start from the entry that caused the page fault
+	while (1 == 1) do
 		
 		PTEntryCounter = (startPTEntry + 2) % 256;
 		
@@ -71,21 +74,14 @@ if (counter == 64) then		// no memory entry free
 			
 			// PTEntryCounter now points to the page number entry
 			
-			if ([PAGE_TABLE + PTEntryCounter + 1] == "01") then
+			if ([PAGE_TABLE + PTEntryCounter + 1] == "01") then 	// we have a potential victim page
 				
-				// we have a potential victim page
-				// check if the memory page is shared or not
-				
-				if ([MEM_LIST + [PAGE_TABLE + PTEntryCounter]] > 1) then
-					// page is shared						// update and continue
+				if ([MEM_LIST + [PAGE_TABLE + PTEntryCounter]] > 1) then // page is shared		
 					PTEntryCounter = PTEntryCounter + 2;
 					continue;
 				endif;
 				
 				// we have an actual victim page
-				
-				// scan the memory copy of the disk free list for a free block
-				// in the swap area
 				
 				swapPageIndex = 448;
 				while (swapPageIndex < 512) do
@@ -104,58 +100,39 @@ if (counter == 64) then		// no memory entry free
 					swapPageIndex = swapPageIndex + 1;
 				endwhile;
 					
-				if (swapPageIndex == 512) then
-					// no place to swap the page to
-					// make the process exit
+				if (swapPageIndex == 512) then 	// no place to swap the page
 					SP = SP + 1;
 					[physicalSP] = 10;
 					inline "JMP 11776";
 				endif;
 				
-				if (swapPageIndex != 512) then
-					// we have a valid page index stored in freePageIndex
-					// break out
+				if (swapPageIndex != 512) then 	// we have a valid page index stored in freePageIndex
 					break;
 				endif;					
 					
 			endif;
 			
-			if ([PAGE_TABLE + PTEntryCounter + 1] == "11") then
-				
-				// change auxiliary information
-				// i.e. give second chance
-				
-				[PAGE_TABLE + PTEntryCounter + 1] = "01";
-				
+			if ([PAGE_TABLE + PTEntryCounter + 1] == "11") then	// give second chance				
+				[PAGE_TABLE + PTEntryCounter + 1] = "01";				
 			endif;
 			
-			PTEntryCounter = (PTEntryCounter + 2) % 256;		
-			
+			PTEntryCounter = (PTEntryCounter + 2) % 256;			
 		endwhile;
 		
-		if (PTEntryCounter != startPTEntry) then
-			// we have a valid page index stored in freePageIndex
-			// so we can stop executing the loop
+		if (PTEntryCounter != startPTEntry) then  // we have a valid page index stored in freePageIndex
 			break;
 		endif;
 		
-	endwhile;
-	
+	endwhile;	
 endif;
-
-// come hail or sun, we have a memory location stored in freePageIndex
 
 // check if the physical page number is a disk or swap block number
 
 if (VPagenum > 20 && VPagenum < 448) then
-	// disk block number
-	// just load the code onto memory
 	load(freePageIndex, VPagenum);
 endif;
 
 if (VPagenum > 447) then
-	// swap block number
-	// load and update entry in disk free list
 	load (freePageIndex, VPagenum);
 	[DISK_LIST + VPagenum] = [DISK_LIST + VPagenum] - 1;
 endif;
