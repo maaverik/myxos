@@ -6,14 +6,26 @@ sysCallNo = [physicalSP - 1];
 
 alias i S13;
 alias nextPID S8;	
-alias PCB S7;
-		
+alias PID S14;
+if (PTBR < 1024 + 256) then
+	PID = (PTBR - 1024)/8;
+else
+	PID = 32 + (PTBR - 61*512)/8;
+endif;
+
+alias PCB S12;
+if (PID < 32) then
+	PCB = READY_LIST + PID*32;
+else
+	PCB = 62*512 + (PID-32)*32;
+endif;
+
 if (sysCallNo == 10 || sysCallNo == 14) then			// To reduce number of code pages
 	
 	i = 0;
 	while (i < 32) do			// Signal all processes waiting for current one
-		if ([READY_LIST + 32 * i + 1] == 100 + (PTBR-1024)/8) then
-			[READY_LIST + 32 * i + 1] = 1;		// set process state to ready
+		if ([PCB + 1] == 100 + (PTBR-1024)/8) then
+			[PCB + 1] = 1;		// set process state to ready
 		endif;
 		i = i + 1;	
 	endwhile;
@@ -40,7 +52,7 @@ endif;
 
 
 if (sysCallNo == 10) then 		// Code for exit()
-	//print("Exiting");
+	print("Exiting");
 	
 	if (nextPID == 32) then
 		print("No other process");
@@ -50,7 +62,6 @@ if (sysCallNo == 10) then 		// Code for exit()
 
 	i = 0;
 	while (i < 8) do 				// Close all files opened by current process
-		PCB = READY_LIST + 32*(PTBR - 1024)/8;		
 		if ([PCB + 15 + i*2] != -1) then			// Decrement SWOFT count
 			[FILE_TABLE + [PCB + 15 + i*2]*2 + 1] = [FILE_TABLE + [PCB + 15 + i*2]*2 + 1] - 1;
 			
@@ -93,6 +104,7 @@ endif;
 
 
 if (sysCallNo == 13) then		// Code for Wait()
+	print("Waiting");
 	alias waitingPID S3;
 	waitingPID = [physicalSP - 3];
 
@@ -104,13 +116,11 @@ if (sysCallNo == 13) then		// Code for Wait()
 
 	alias PID S4;
 	PID = (PTBR - 1024)/8;
-	[READY_LIST + PID*32 + 1] = 100 + waitingPID;	// change state of current process
+	[PCB + 1] = 100 + waitingPID;	// change state of current process
 
 	//print("Waiting");
 
-	alias PCB S5;
-	PCB = READY_LIST + 32*(PTBR-1024)/8;
-
+	
 	[ PCB + 2 ] = BP;			// Back up register values
 	[ PCB + 3 ] = SP - 1;	
 	[ PCB + 4 ] = [ physicalSP ]; // Save IP of current process in the PCB from the stack

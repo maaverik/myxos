@@ -1,3 +1,6 @@
+// PCBs in 1536 - 2559 and 62*512 - 64*512-1
+// Page tables in 1024 - 1279 and 61*512 - 61*512+256
+
 load(7,1);			//load exception handler
 load(8,2);
 
@@ -51,6 +54,7 @@ alias i S0;
 i = 15;
 while (i < 31)	do						//Setting up the Per-Process File Open table
 	[READY_LIST + i] = -1;
+	[61*512 + i] = -1;
 	i = i+1;
 endwhile;
 
@@ -86,11 +90,18 @@ while(i<64) do			//Set rest to unused
 	i = i+1;
 endwhile;
 
+[MEM_LIST + 61] = 1;	// Page table
+[MEM_LIST + 62] = 1;	// PCB
+[MEM_LIST + 63] = 1;
+
 i = 1;
 while (i<32) do		//Set state of all PCBs except init to free
 	[READY_LIST + i*32 + 1] = 0;
+	[62*512 + i*32 + 1] = 0;
 	i = i+1;
 endwhile;
+
+[62*512 + 1] = 0; 
 
 i = 448;					//Set up swap area
 while (i < 512) do

@@ -4,6 +4,20 @@ physicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
 alias sysCallNo S1;
 sysCallNo = [physicalSP - 1];
 
+alias PID S14;
+if (PTBR < 1024 + 256) then
+	PID = (PTBR - 1024)/8;
+else
+	PID = 32 + (PTBR - 61*512)/8;
+endif;
+
+alias PCB S12;
+if (PID < 32) then
+	PCB = READY_LIST + PID*32;
+else
+	PCB = 62*512 + (PID-32)*32;
+endif;
+
 if ( sysCallNo == 2) then		// Code for Open()
 	//print("Opening");
 	alias filename S2;
@@ -56,15 +70,13 @@ if ( sysCallNo == 2) then		// Code for Open()
 		endif;
 	endif;
 	
-	alias PID S4;
-	PID = (PTBR - 1024)/8;
 	
 	alias i S5;		//Search for free entry in per proces open file table
     i = 15;
    
     //print("Free entry search");
     while (i < 30) do
-	  if ([READY_LIST + 32 * PID + i] == -1) then
+	  if ([PCB + i] == -1) then
 	    break;
  	  endif;
       i = i + 2;
@@ -76,8 +88,8 @@ if ( sysCallNo == 2) then		// Code for Open()
 	  ireturn;
    endif;
  
-	[READY_LIST + 32 * PID + i] = sysEntry/2;	//Set FAT entry
-	[READY_LIST + 32 * PID + (i+1)] = 0; 	//Setting the LSEEK position
+	[PCB + i] = sysEntry/2;	//Set FAT entry
+	[PCB + (i+1)] = 0; 	//Setting the LSEEK position
 	[sysEntry + FILE_TABLE] = FATind;
 	[sysEntry + FILE_TABLE + 1] = [sysEntry + FILE_TABLE + 1] + 1;	//Increment open count
 	[physicalSP - 2] = (i-15)/2;		//File descriptor
@@ -108,10 +120,8 @@ if (sysCallNo == 3) then		// Code for Close()
 		ireturn;
 	endif;	
 
-	alias PID S4;
-	PID = (PTBR - 1024)/8;
 	alias sysFileTable S5;
-	sysFileTable = [READY_LIST + 32 * PID + 15 + fileDescriptor*2];
+	sysFileTable = [PCB + 15 + fileDescriptor*2];
 	
 	if (sysFileTable == -1) then 	//Not open
 		print("Not open");
@@ -124,7 +134,7 @@ if (sysCallNo == 3) then		// Code for Close()
 		[sysFileTable + FILE_TABLE] = -1;
 	endif;
 	
-	[READY_LIST + 32 * PID + 15 + fileDescriptor*2] = -1;		//Invalidate per process open table entry
+	[PCB + 15 + fileDescriptor*2] = -1;		//Invalidate per process open table entry
 	//print("Closing success");
 	[physicalSP - 2] = 0; 	//Success
 	ireturn;

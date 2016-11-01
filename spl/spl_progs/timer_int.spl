@@ -1,10 +1,18 @@
 //print("In timer");
 //print(".");
-alias currentPID S0;		//Find PID of current process
-currentPID = (PTBR - 1024) / 8;
+alias currentPID S14;
+if (PTBR < 1024 + 256) then
+    currentPID = (PTBR - 1024)/8;
+else
+    currentPID = 32 + (PTBR - 61*512)/8;
+endif;
 
-alias currentPCB S1;		//Find location of PCB
-currentPCB = READY_LIST + 32 * currentPID;
+alias currentPCB S1;
+if (currentPID < 32) then
+    currentPCB = READY_LIST + currentPID*32;
+else
+    currentPCB = 62*512 + (currentPID-32)*32;
+endif;
 
 [ currentPCB + 1 ] = 1; // Set STATE to READY
 
@@ -33,15 +41,22 @@ alias testPCB S4;
 alias newPCB S5;
 alias last S6;
 
+//print("A");
+
 last = READY_LIST + 1024-32; //last = pid of the last process
 
 [currentPCB +1] =1; //set state of current process to ready
 
 testPCB = currentPCB+32; //testpcb is the next process
 
+//print("B");
+
 while (testPCB != currentPCB) do
-    if(testPCB > last) then
-        testPCB = READY_LIST;  		//goes back to 1st process in ready list
+    if(testPCB > last && testPCB < 62*512) then
+        testPCB = 62*512;  		//goes back to 1st process in ready list
+    endif;
+    if (testPCB >= 64*512) then
+        testPCB = READY_LIST;
     endif;
     if ([testPCB + 1] == 1) then   	//if state of the process is ready choose it
         newPCB = testPCB;
@@ -51,11 +66,15 @@ while (testPCB != currentPCB) do
     endif;
 endwhile;
 
+//print("C");
 
 if(testPCB == currentPCB) then		//If only one process
     [currentPCB + 1] = 2;
     ireturn;
 endif;
+
+// print("NEW");
+// print(newPCB);
 
 BP = [newPCB+2];		//Restore registers
 SP = [newPCB+3];
@@ -70,6 +89,137 @@ R5 = [newPCB+12];
 R6 = [newPCB+13];
 R7 = [newPCB+14];
 
+//print("AA");
+
+// print("___");
+// print(currentPCB);
+// print(newPCB);
+//print([PTBR + 7]);
+alias startPTEntry S11;
+alias PTEntryCounter S12;
+alias swapPageIndex S13;
+alias freePageIndex S14;
+
+if ([PTBR + 7] == "00") then
+    //print("E");
+
+    startPTEntry = PAGE_TABLE + PTBR - 1024 + 6;
+    if (startPTEntry >= PAGE_TABLE + 256) then
+        startPTEntry = 61*512 + PTBR - 1024 + 6;
+    endif;
+    
+    while (1 == 1) do
+        //print("___");
+        PTEntryCounter = (startPTEntry + 2);
+        if (PTEntryCounter >= PAGE_TABLE + 256 && PTEntryCounter < 61*512) then
+            PTEntryCounter = 61*512;
+        endif;
+        if (PTEntryCounter >= 61*512 + 256) then
+            PTEntryCounter = PAGE_TABLE;
+        endif;
+        
+        while (PTEntryCounter != startPTEntry) do
+            //print(PTEntryCounter);
+            // check if page is being used for stack
+            
+            // PTEntryCounter now points to the page number entry
+            
+            if ([PTEntryCounter + 1] == "01") then  // we have a potential victim page
+                
+                if ([MEM_LIST + [PTEntryCounter]] > 1) then // page is shared       
+                    PTEntryCounter = PTEntryCounter + 2;
+                    if (PTEntryCounter >= PAGE_TABLE + 256 && PTEntryCounter < 61*512) then
+                        PTEntryCounter = 61*512;
+                    endif;
+                    if (PTEntryCounter >= 61*512 + 256) then
+                        PTEntryCounter = PAGE_TABLE;
+                    endif;
+
+                    continue;
+                endif;
+                
+                // we have an actual victim page
+
+                swapPageIndex = 448;
+                while (swapPageIndex < 512) do
+                    if ([DISK_LIST + swapPageIndex] == 0) then
+                        store([PTEntryCounter], swapPageIndex);
+                        // mark swap disk block as used
+                        [DISK_LIST + swapPageIndex] = 1;
+                        
+                        // store the index of the obtained page 
+                        freePageIndex = [PTEntryCounter];
+                        // mark PTBR entry to point to swap block
+                        [PTEntryCounter] = swapPageIndex;
+                        // set auxiliary information of page as invalid
+                        [PTEntryCounter + 1] = "00";
+                        break;                      
+                    endif;
+                    swapPageIndex = swapPageIndex + 1;
+                endwhile;
+                
+                // print("GOT");
+                // print(freePageIndex);
+                // print(swapPageIndex);
+                
+                if (swapPageIndex == 512) then  // no place to swap the page
+                    print("No swap");
+                    SP = SP + 1;
+                    [physicalSP] = 10;
+                    inline "JMP 11776";
+                endif;
+                
+                if (swapPageIndex != 512) then  // we have a valid page index stored in freePageIndex
+                    break;
+                endif;                  
+                    
+            endif;
+            
+            if ([PTEntryCounter + 1] == "11") then  // give second chance               
+                [PTEntryCounter + 1] = "01";                
+            endif;
+            
+            PTEntryCounter = (PTEntryCounter + 2);
+            if (PTEntryCounter >= PAGE_TABLE + 256 && PTEntryCounter < 61*512) then
+                PTEntryCounter = 61*512;
+            endif;
+            if (PTEntryCounter >= 61*512 + 256) then
+                PTEntryCounter = PAGE_TABLE;
+            endif;
+            
+        endwhile;
+        
+        //print("F");
+
+        if (PTEntryCounter != startPTEntry) then  // we have a valid page index stored in freePageIndex
+            break;
+        endif;
+        
+    endwhile;   
+
+    //print("G");
+
+    if ([PTBR + 6] > 20 && [PTBR + 6] < 448) then
+        load(freePageIndex, [PTBR + 6]);
+    endif;
+
+    if ([PTBR + 6] > 447) then
+        load (freePageIndex, [PTBR + 6]);
+        [DISK_LIST + [PTBR + 6]] = [DISK_LIST + [PTBR + 6]] - 1;
+    endif;
+
+    [PTBR + 6] = freePageIndex;
+    [PTBR + 7] = "11";
+    // print("----");
+    // print([PTBR]);
+    // print([PTBR + 6]);
+
+endif;
+//print("---");
+//print("BB");
+
+//breakpoint;
+
 SP = SP + 1; 		//increment SP to save IP to top
 
 alias newphysicalSP S2; 
@@ -77,5 +227,9 @@ newphysicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
 [ newphysicalSP ] = [ newPCB + 4 ]; // Stores IP field value of PCB on the stack 
 
 [newPCB + 1] = 2;//Set state to running
+//print(PTBR);
+//print([PTBR]);
+//print("J");
+//print("CC");
 
 ireturn;	

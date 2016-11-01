@@ -1,13 +1,17 @@
 integer main()
 {
-	integer childpid, retval;
+	integer childpid,i, retval;
 	childpid = Fork();
 	if(childpid == -2) then
 		retval = Exec("stage10.xsm");
 	else
-		while(childpid != -1) do
+		if(childpid != -1) then
+			i = 0;
+			while (i< 100) do
+				i = i+1;
+			endwhile;
 			print(childpid);
-		endwhile;
+		endif;
 	endif;
 	return 0;
 }

@@ -4,8 +4,22 @@ physicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
 alias sysCallNo S1;
 sysCallNo = [physicalSP - 1];
 
+alias PID S14;
+if (PTBR < 1024 + 256) then
+	PID = (PTBR - 1024)/8;
+else
+	PID = 32 + (PTBR - 61*512)/8;
+endif;
+
+alias PCB S12;
+if (PID < 32) then
+	PCB = READY_LIST + PID*32;
+else
+	PCB = 62*512 + (PID-32)*32;
+endif;
+
 if (sysCallNo == 9) then 		// Code for exec()
-	//print("Execing");
+	print("Execing");
 	alias filename S2;
 	filename = [physicalSP - 3];
 
@@ -86,8 +100,6 @@ if (sysCallNo == 9) then 		// Code for exec()
 
 	i = 0;
 	while (i < 8) do 				// Close all files opened by current process
-		alias PCB S7;
-		PCB = READY_LIST + 32*(PTBR - 1024)/8;		
 		if ([PCB + 15 + i*2] != -1) then			// Decrement SWOFT count
 			[FILE_TABLE + [PCB + 15 + i*2]*2 + 1] = [FILE_TABLE + [PCB + 15 + i*2]*2 + 1] - 1;
 			
@@ -126,8 +138,55 @@ endif;
 if (sysCallNo == 12) then		// Code for getppid()
   alias PID S2;
   PID = (PTBR - 1024) / 8;
-  [physicalSP - 2] = [READY_LIST + (32 * PID) + 31];		// PID of parent
+  [physicalSP - 2] = [PCB + 31];		// PID of parent
   print("PPID is:");
-  print([READY_LIST + (32 * PID) + 31]);
+  print([PCB + 31]);
   ireturn;
+endif;
+
+
+if (sysCallNo == 8) then
+	//print("HERE__");
+	alias startPTEntry S15;
+	alias PTEntryCounter S10;
+	alias swapPageIndex S13;
+
+	alias newPID S2;
+	alias childPTBR S7;
+	alias i S4;
+	alias freePageIndex S3;
+
+	alias wordIndex S6;
+	
+	// set up entries of the child process' PCB
+	
+	alias childPCB S10;
+	[childPCB] = newPID;
+	[childPCB + 2] = BP;
+	[childPCB + 3] = SP - 1;	// SP - 1 is used because the child process does not have the IP stored in its stack
+	[childPCB + 4] = [physicalSP];	// same as the IP of parent process because it is logical address
+	[childPCB + 5] = childPTBR;
+	[childPCB + 6] = 4;	
+	[childPCB + 7] = R0;
+	[childPCB + 8] = R1;
+	[childPCB + 9] = R2;
+	[childPCB + 10] = R3;
+	[childPCB + 11] = R4;
+	[childPCB + 12] = R5;
+	[childPCB + 13] = R6;
+	[childPCB + 14] = R7;
+	[childPCB + 31] = PID;
+	
+	
+	// set STATE of child to READY
+	[childPCB + 1] = 1;
+	
+	// set up return values
+	
+	// return value for parent is PID of child process
+	[physicalSP - 2] = newPID;
+	alias childPhysicalSP S8;
+	childPhysicalSP = ([childPTBR + 2 * ((SP - 1) / 512)] * 512) + ((SP - 1) % 512);
+	[childPhysicalSP - 1] = -2;	// return value for child is -2
+	ireturn;
 endif;

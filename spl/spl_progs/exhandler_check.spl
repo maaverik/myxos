@@ -1,0 +1,150 @@
+alias Cause S0;
+alias BadVAddr S1;
+alias IPAddress S2;
+
+alias i S3;
+alias freePageIndex S4;
+alias PTBRCounter S5;
+alias VPagenum S9;
+
+Cause = EFR % 10;		// Gets value of cause field (size 1 char)
+BadVAddr = (EFR / 10) % 100;    // Gets value of BadVAddr 
+IPAddress = (EFR / 1000);		// Gets value of IP at the point
+VPagenum = [PTBR + BadVAddr * 2];	// Value corresponding to page fault
+
+alias physicalSP S10;
+physicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
+
+
+if (Cause != 0) then
+	if (Cause == 1) then
+		print("Illegal instruction");
+	endif;
+	if (Cause == 2) then
+		print("Illegal mem access");
+	endif;
+	if (Cause == 3) then
+		print("Arithmetic exception");
+	endif;
+	if (Cause == 4) then
+		print("Illegal Operand");
+	endif;
+	SP = SP + 1;
+	[physicalSP] = 10;
+	inline "JMP 11776";
+endif;
+
+if (VPagenum == -1) then 	// invalid page
+	SP = SP + 1;
+	[physicalSP] = 10;
+	inline "JMP 11776";
+endif;
+
+
+i = 25;			
+while (i < 64) do 	// try to find a free page
+	if ([MEM_LIST + i] == 0) then
+		freePageIndex = i;
+		[MEM_LIST + i] = 1;
+		break;
+	endif;
+	i = i + 1;
+endwhile;
+
+if (i == 64) then		// no memory entry free
+	
+	alias startPTEntry S6;
+	alias PTEntryCounter S7;
+	alias swapPageIndex S8;
+	
+	// find the entry that lead to the exception
+	startPTEntry = PTBR - 1024 + BadVAddr * 2;
+	
+	while (1 == 1) do
+		
+		PTEntryCounter = (startPTEntry + 2) % 256;
+		
+		while (PTEntryCounter != startPTEntry) do
+			
+			// check if page is being used for stack
+			if (PTEntryCounter % 8 == 6) then
+				PTEntryCounter = (PTEntryCounter + 2) % 256;
+				continue;
+			endif;
+			
+			// PTEntryCounter now points to the page number entry
+			
+			if ([PAGE_TABLE + PTEntryCounter + 1] == "01") then 	// we have a potential victim page
+				
+				if ([MEM_LIST + [PAGE_TABLE + PTEntryCounter]] > 1) then // page is shared		
+					PTEntryCounter = PTEntryCounter + 2;
+					continue;
+				endif;
+				
+				// we have an actual victim page
+				
+				swapPageIndex = 448;
+				while (swapPageIndex < 512) do
+					if ([DISK_LIST + swapPageIndex] == 0) then
+						store([PAGE_TABLE + PTEntryCounter], swapPageIndex);
+						// mark swap disk block as used
+						[DISK_LIST + swapPageIndex] = 1;
+						// store the index of the obtained page 
+						freePageIndex = [PAGE_TABLE + PTEntryCounter];
+						// mark PTBR entry to point to swap block
+						[PAGE_TABLE + PTEntryCounter] = swapPageIndex;
+						// set auxiliary information of page as invalid
+						[PAGE_TABLE + PTEntryCounter + 1] = "00";
+						break;						
+					endif;
+					swapPageIndex = swapPageIndex + 1;
+				endwhile;
+					
+				if (swapPageIndex == 512) then 	// no place to swap the page
+					SP = SP + 1;
+					[physicalSP] = 10;
+					inline "JMP 11776";
+				endif;
+				
+				if (swapPageIndex != 512) then 	// we have a valid page index stored in freePageIndex
+					break;
+				endif;					
+					
+			endif;
+			
+			if ([PAGE_TABLE + PTEntryCounter + 1] == "11") then	// give second chance				
+				[PAGE_TABLE + PTEntryCounter + 1] = "01";				
+			endif;
+			
+			PTEntryCounter = (PTEntryCounter + 2) % 256;			
+		endwhile;
+		
+		if (PTEntryCounter != startPTEntry) then  // we have a valid page index stored in freePageIndex
+			break;
+		endif;
+		
+	endwhile;	
+endif;
+
+// check if the physical page number is a disk or swap block number
+
+if (VPagenum > 20 && VPagenum < 448) then
+	load(freePageIndex, VPagenum);
+endif;
+
+if (VPagenum > 447) then
+	load (freePageIndex, VPagenum);
+	[DISK_LIST + VPagenum] = [DISK_LIST + VPagenum] - 1;
+endif;
+
+// set proper physical page number in PTBR of current process
+[PTBR + BadVAddr * 2] = freePageIndex;
+[PTBR + BadVAddr * 2 + 1] = "11";
+
+// increment SP by 1 and store IP value 
+SP = SP + 1;
+physicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
+[physicalSP] = IPAddress;
+
+breakpoint;
+ireturn;

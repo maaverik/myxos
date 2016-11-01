@@ -4,48 +4,109 @@ physicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
 alias sysCallNo S1;
 sysCallNo = [physicalSP - 1];
 
-alias PID S9;
-PID = (PTBR - 1024) / 8;
+//print("a");
+
+alias PID S14;
+if (PTBR < 1024 + 256) then
+	PID = (PTBR - 1024)/8;
+else
+	PID = 32 + (PTBR - 61*512)/8;
+endif;
+
+alias PCB S12;
+if (PID < 32) then
+	PCB = READY_LIST + PID*32;
+else
+	PCB = 62*512 + (PID-32)*32;
+endif;
+
+//print("b");
 
 alias startPTEntry S15;
-alias PTEntryCounter S14;
+alias PTEntryCounter S10;
 alias swapPageIndex S13;
 
 if (sysCallNo == 8) then			//Code for Fork()
+	
+	//print("c");
+	
+	if (PID >= 48) then
+		print("Swap Full");
+		ireturn;
+	endif;
 
 	alias newPID S2;
 	newPID = PID + 1;
-	while ((newPID % 32) != PID) do
-		if ([READY_LIST + (newPID % 32) * 32 + 1] == 0) then
+	alias newPCB S13;
+	if (newPID < 32) then
+		newPCB = READY_LIST + newPID*32;
+	endif;
+	if (newPID >= 32 && newPID < 64) then
+		newPCB = 62*512 + (newPID-32)*32;
+	endif;
+	if (newPID >= 64) then
+		newPCB = READY_LIST;
+		newPID = 0;
+	endif;
+
+	//print("d");
+
+	while ((newPID % 64) != PID) do
+		if ([newPCB + 1] == 0) then
 			break;
 		endif;
 		newPID = newPID + 1;	
+		if (newPID < 32) then
+			newPCB = READY_LIST + newPID*32;
+			continue;
+		endif;
+		if (newPID >= 64) then
+			newPCB = READY_LIST;
+			newPID = 0;
+		else
+			newPCB = 62*512 + (newPID-32)*32;
+		endif;
 	endwhile;
+
+	//print("e");
 	
-	newPID = newPID % 32;
+	newPID = newPID % 64;
 	
 	if (newPID == PID) then
+		print("No free PCB");
 		[physicalSP - 2] = -1;
 		ireturn;
 	endif;
 	
 	alias childPTBR S7;
-	childPTBR = 1024 + newPID * 8;
-	
+	if (newPID < 32) then
+		childPTBR = 1024 + newPID * 8;
+	endif;
+	if (newPID >= 32 && newPID < 64) then
+		print("NewPId");
+		print(newPID);
+		childPTBR = 61*512 + (newPID-32) * 8;
+		print(childPTBR);
+	endif;
+
 	alias i S4;
 	i = 25;
 	
-	alias newStackLocation S3;
-	
+	//print("f");
+
+	alias freePageIndex S3;
+
 	while (i < 64) do 			// Check for one free page
 		if ([MEM_LIST + i] == 0) then
-			newStackLocation = i;
+			freePageIndex = i;
 			[MEM_LIST + i] = 1;
 			break;
 		endif;
 		i = i + 1;
 	endwhile;
 	
+	//print("g");
+
 	if (i == 64) then				// no memory entry free; so try swapping one out
 
 		startPTEntry = childPTBR - 1024 + 6; 	// Starts at stack
@@ -56,10 +117,6 @@ if (sysCallNo == 8) then			//Code for Fork()
 			
 			while (PTEntryCounter != startPTEntry) do
 				
-				if (PTEntryCounter % 8 == 6) then 			// check if page is being used for stack
-					PTEntryCounter = (PTEntryCounter + 2) % 256;
-					continue;
-				endif;
 				
 				// PTEntryCounter now points to the page number entry
 				
@@ -82,7 +139,7 @@ if (sysCallNo == 8) then			//Code for Fork()
 							// mark swap disk block as used
 							[DISK_LIST + swapPageIndex] = 1;
 							// store the index of the obtained page 
-							newStackLocation = [PAGE_TABLE + PTEntryCounter];
+							freePageIndex = [PAGE_TABLE + PTEntryCounter];
 							// mark PTBR entry to point to swap block
 							[PAGE_TABLE + PTEntryCounter] = swapPageIndex;
 							// set auxiliary information of page as invalid
@@ -97,7 +154,7 @@ if (sysCallNo == 8) then			//Code for Fork()
 						ireturn;
 					endif;
 					
-					if (swapPageIndex != 512) then			// we have a valid page index stored in newStackLocation
+					if (swapPageIndex != 512) then			// we have a valid page index stored in freePageIndex
 						break;
 					endif;					
 						
@@ -111,25 +168,26 @@ if (sysCallNo == 8) then			//Code for Fork()
 				
 			endwhile;
 			
-			if (PTEntryCounter != startPTEntry) then 		// we have a valid page index stored in newStackLocation
+			if (PTEntryCounter != startPTEntry) then 		// we have a valid page index stored in freePageIndex
 				break;
 			endif;
 			
 		endwhile;
 		
 	endif;
-	
+
+	//print("h");
+
+
 	alias wordIndex S6;	// to copy from one page to another
-	
-	
 	wordIndex = 0;
 	while (wordIndex < 512) do 		// copy the stack
-		[newStackLocation * 512 + wordIndex] = [[PTBR + 6] * 512 + wordIndex];
+		[freePageIndex * 512 + wordIndex] = [[PTBR + 6] * 512 + wordIndex];
 		wordIndex = wordIndex + 1;
 	endwhile;
 	
 	// set fourth entry of child's PTBR as stack
-	[childPTBR + 6] = newStackLocation;
+	[childPTBR + 6] = freePageIndex;
 	[childPTBR + 7] = "01";	
 	
 	// update other entries of child's PTBR
@@ -156,35 +214,21 @@ if (sysCallNo == 8) then			//Code for Fork()
 		i = i + 1;
 		
 	endwhile;
-	
-	// set up entries of the child process' PCB
-	
+
+		// PPOFT
 	alias childPCB S10;
-	childPCB = READY_LIST + newPID * 32;
-	[childPCB] = newPID;
-	[childPCB + 2] = BP;
-	[childPCB + 3] = SP - 1;	// SP - 1 is used because the child process does not have the IP stored in its stack
-	[childPCB + 4] = [physicalSP];	// same as the IP of parent process because it is logical address
-	[childPCB + 5] = childPTBR;
-	[childPCB + 6] = 4;	
-	[childPCB + 7] = R0;
-	[childPCB + 8] = R1;
-	[childPCB + 9] = R2;
-	[childPCB + 10] = R3;
-	[childPCB + 11] = R4;
-	[childPCB + 12] = R5;
-	[childPCB + 13] = R6;
-	[childPCB + 14] = R7;
-	[childPCB + 31] = PID;
-	
-	// PPOFT
-	
+	if (newPID < 32) then
+		childPCB = READY_LIST + newPID*32;
+	else
+		childPCB = 62*512 + (newPID-32)*32;
+	endif;
+
 	i = 0;
 	while (i < 8) do
-		[childPCB + 15 + i * 2] = [READY_LIST + PID * 32 + 15 + i * 2];	// pointer to SWOFT
-		[childPCB + 15 + i * 2 + 1] = [READY_LIST + PID * 32 + 15 + i * 2 + 1];	// LSEEK position
+		[childPCB + 15 + i * 2] = [PCB + 15 + i * 2];	// pointer to SWOFT
+		[childPCB + 15 + i * 2 + 1] = [PCB + 15 + i * 2 + 1];	// LSEEK position
 		// increment the file open count in SWOFT
-		// [READY_LIST + PID * 32 + 15 + i * 2] is SWOFT Index
+		// [PCB + 15 + i * 2] is SWOFT Index
 		if ([childPCB + 15 + i * 2] != -1) then
 			// entry is valid
 			[FILE_TABLE + [childPCB + 15 + i * 2] * 2 + 1] = [FILE_TABLE + [childPCB + 15 + i * 2] * 2 + 1] + 1;
@@ -192,17 +236,8 @@ if (sysCallNo == 8) then			//Code for Fork()
 		i = i + 1;
 	endwhile;
 	
-	// set STATE of child to READY
-	[childPCB + 1] = 1;
-	
-	// set up return values
-	
-	// return value for parent is PID of child process
-	[physicalSP - 2] = newPID;
-	alias childPhysicalSP S8;
-	childPhysicalSP = ([childPTBR + 2 * ((SP - 1) / 512)] * 512) + ((SP - 1) % 512);
-	[childPhysicalSP - 1] = -2;	// return value for child is -2
+	breakpoint;
 
-	ireturn;
+	inline "JMP 10752";
 	
 endif;

@@ -4,6 +4,19 @@ physicalSP = ([PTBR + 2 * (SP/512)] * 512) + (SP % 512);
 alias sysCallNo S1;
 sysCallNo = [physicalSP - 1];
 
+alias PID S14;
+if (PTBR < 1024 + 256) then
+  PID = (PTBR - 1024)/8;
+else
+  PID = 32 + (PTBR - 61*512)/8;
+endif;
+
+alias PCB S12;
+if (PID < 32) then
+  PCB = READY_LIST + PID*32;
+else
+  PCB = 62*512 + (PID-32)*32;
+endif;
 
 if (sysCallNo == 6) then		//Code for Seek()
   //print("Seeking");
@@ -22,7 +35,7 @@ endif;
   alias PID S5;
   PID = (PTBR - 1024)/8;
   
-  processFileTable = READY_LIST + 32 * PID + 15 + (2 * fileDescriptor); 
+  processFileTable = PCB + 15 + (2 * fileDescriptor); 
   if ([processFileTable] == -1) then	 //Check per-process table entry
     print ("Invalid entry");
     [physicalSP - 2] = -1;
@@ -64,10 +77,8 @@ endif;
 //print("a");
 
   alias processFileTable S4;
-  alias PID S5;
-  PID = (PTBR - 1024)/8;
   
-  processFileTable = READY_LIST + 32 * PID + 15 + (2 * fileDescriptor); 
+  processFileTable = PCB + 15 + (2 * fileDescriptor); 
   if ([processFileTable] == -1) then	 //Check per-process table entry
     print ("Invalid entry");
     [physicalSP - 2] = -1;
